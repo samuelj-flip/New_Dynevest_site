@@ -1,0 +1,29 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card shadow border-0">
+                <div class="card-body p-4">
+                    <h3 class="text-center mb-4">Withdraw Funds</h3>
+                    <p class="text-center text-muted">Available Balance: <strong>${{ profile.balance }}</strong></p>
+
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Amount to Withdraw ($)</label>
+                            <input type="number" name="amount" class="form-control" min="10" step="0.01" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Your Wallet Address (BTC/USDT)</label>
+                            <input type="text" name="wallet_address" class="form-control" placeholder="0x..." required>
+                        </div>
+                        <button type="submit" class="btn btn-danger w-100 py-2">Request Withdrawal</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

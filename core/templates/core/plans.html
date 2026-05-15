@@ -1,0 +1,65 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="text-center mb-5">
+        <h2 class="fw-bold">Investment Plans</h2>
+        <p class="text-muted">Choose a plan that fits your financial goals</p>
+    </div>
+
+    <!-- Alert Messages (For 'Insufficient Funds' or 'Success') -->
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        {% for plan in plans %}
+        <div class="col-md-4">
+            <div class="card h-100 shadow border-0 transition-hover">
+                <div class="card-header bg-white border-0 pt-4 text-center">
+                    <span class="badge bg-soft-primary text-primary mb-2" style="background-color: #e7f1ff;">Active
+                        Plan</span>
+                    <h3 class="fw-bold">{{ plan.name }}</h3>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <span class="display-5 fw-bold text-dark">${{ plan.price }}</span>
+                    </div>
+
+                    <ul class="list-unstyled mb-4 text-muted">
+                        <li class="mb-2">📅 Duration: <strong>{{ plan.duration_days }} Days</strong></li>
+                        <li class="mb-2">📈 ROI: <strong>{{ plan.roi_percentage }}%</strong></li>
+                        <li class="mb-2">⚡ Instant Activation</li>
+                    </ul>
+
+                    <!-- THE IMPORTANT LINK: Points to the buy_plan URL -->
+                    <a href="{% url 'buy_plan' plan.id %}" class="btn btn-primary w-100 py-2 shadow-sm">
+                        Invest Now
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center">
+            <p class="text-muted">No investment plans available at the moment. Check back later!</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .transition-hover {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .transition-hover:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 1rem 3rem rgba(0, 0, 0, .175) !important;
+    }
+</style>
+{% endblock %}

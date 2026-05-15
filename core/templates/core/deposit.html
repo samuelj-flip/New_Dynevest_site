@@ -1,0 +1,33 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-body p-4">
+                    <h3 class="text-center mb-4">Make a Deposit</h3>
+
+                    <div class="alert alert-info">
+                        <strong>Wallet Address (BTC):</strong><br>
+                        <code>1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa</code>
+                    </div>
+
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Amount ($)</label>
+                            <input type="number" name="amount" class="form-control" placeholder="0.00" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Proof of Payment (Screenshot)</label>
+                            <input type="file" name="proof" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Submit Deposit</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
