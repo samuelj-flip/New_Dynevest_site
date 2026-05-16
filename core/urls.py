@@ -10,5 +10,6 @@ urlpatterns = [
     path('plans/', views.investment_plans_view, name='plans'), # ADD THIS LINE
     path('deposit/', views.deposit_view, name='deposit'),
     path('buy-plan/<int:plan_id>/', views.buy_plan, name='buy_plan'),
-    path('withdraw/', views.withdraw_view, name='withdraw')
+    path('withdraw/', views.withdraw_view, name='withdraw'),
+    path('transactions/', views.transactions_view, name='transactions'),
 ]

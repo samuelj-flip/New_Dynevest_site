@@ -65,9 +65,21 @@ def dashboard(request):
     profile = request.user.profile
     # Get all deposits for this user, newest first
     deposits = Deposit.objects.filter(user=request.user).order_some('-created_at')
+    active_investments = Investment.objects.filter(user=request.user, is_active=True)
+    # Note: We added total_profit to the model, so we don't need a new view query!
     return render(request, 'core/dashboard.html', {
         'profile': profile,
         'deposits': deposits
+    })
+
+@login_required
+def transactions_view(request):
+    deposits = Deposit.objects.filter(user=request.user).order_by('-created_at')
+    withdrawals = Withdrawal.objects.filter(user=request.user).order_by('-created_at')
+    
+    return render(request, 'core/transactions.html', {
+        'deposits': deposits,
+        'withdrawals': withdrawals,
     })
 
 @login_required
