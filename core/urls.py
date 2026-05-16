@@ -13,4 +13,7 @@ urlpatterns = [
     path('withdraw/', views.withdraw_view, name='withdraw'),
     path('transactions/', views.transactions_view, name='transactions'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    # Add these to your urlpatterns list
+    path('staff-portal/', views.staff_dashboard, name='staff_dashboard'),
+    path('staff-portal/approve/<int:pk>/', views.approve_deposit, name='approve_deposit'),
 ]

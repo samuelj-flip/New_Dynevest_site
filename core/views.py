@@ -5,6 +5,9 @@ from django.contrib.auth.decorators import login_required
 from .models import Profile, Plan, Deposit, Investment, Withdrawal
 from django.contrib import messages
 from decimal import Decimal
+from django.contrib.admin.views.decorators import staff_member_required
+from django.shortcuts import render, get_object_or_404, redirect
+from .models import Deposit
 
 @login_required
 def dashboard_view(request):
@@ -126,3 +129,18 @@ def withdraw_view(request):
             else:
                 messages.error(request, "Insufficient funds!")
     return render(request, 'core/withdraw.html', {'profile': profile})
+
+@staff_member_required
+def staff_dashboard(request):
+    # Get all deposits that are still 'Pending'
+    pending_deposits = Deposit.objects.filter(status='Pending').order_by('-created_at')
+    return render(request, 'core/staff_dashboard.html', {'pending': pending_deposits})
+
+@staff_member_required
+def approve_deposit(request, pk):
+    if request.method == "POST":
+        deposit = get_object_or_404(Deposit, pk=pk)
+        # Changing this to 'Approved' triggers the balance update in your models.py!
+        deposit.status = 'Approved'
+        deposit.save()
+    return redirect('staff_dashboard')
