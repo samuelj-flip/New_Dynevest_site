@@ -12,4 +12,5 @@ urlpatterns = [
     path('buy-plan/<int:plan_id>/', views.buy_plan, name='buy_plan'),
     path('withdraw/', views.withdraw_view, name='withdraw'),
     path('transactions/', views.transactions_view, name='transactions'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
 ]

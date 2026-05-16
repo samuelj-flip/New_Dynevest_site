@@ -1,9 +1,9 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-<div class="row justify-content-center mt-5">
+<div class="row justify-content-center mt-5 py-5">
     <div class="col-md-4">
-        <div class="card shadow border-0">
+        <div class="card shadow border-0" style="border-radius: 15px;">
             <div class="card-body p-4">
                 <h3 class="text-center fw-bold mb-4">Login to DYNEVEST</h3>
 
@@ -11,23 +11,40 @@
                     {% csrf_token %}
 
                     {% if form.errors %}
-                    <div class="alert alert-danger">Your username and password didn't match. Please try again.</div>
+                    <div class="alert alert-danger small py-2">
+                        Your username and password didn't match. Please try again.
+                    </div>
                     {% endif %}
 
                     <div class="mb-3">
-                        {{ form.username.label_tag }}
-                        <input type="text" name="username" class="form-control" required>
+                        <label class="form-label fw-semibold small text-muted">Username</label>
+                        <input type="text" name="username" class="form-control rounded-3" placeholder="Enter username" required>
                     </div>
+                    
                     <div class="mb-3">
-                        {{ form.password.label_tag }}
-                        <input type="password" name="password" class="form-control" required>
+                        <label class="form-label fw-semibold small text-muted">Password</label>
+                        <input type="password" name="password" class="form-control rounded-3" placeholder="••••••••" required>
                     </div>
 
-                    <button type="submit" class="btn btn-primary w-100 py-2">Login</button>
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm mt-2">Login</button>
                     <input type="hidden" name="next" value="{{ next }}">
                 </form>
+
+                <!-- THE MISSING LINK FIXED HERE -->
+                <div class="mt-4 text-center">
+                    <p class="small text-muted mb-0">Don't have an account?</p>
+                    <a href="{% url 'register' %}" class="text-primary fw-bold text-decoration-none">Create a free account</a>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    body { background-color: #f8f9fa; }
+    .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.1);
+    }
+</style>
 {% endblock %}

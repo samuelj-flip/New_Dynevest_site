@@ -1,19 +1,42 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-<div class="row justify-content-center">
+<div class="row justify-content-center py-5">
     <div class="col-md-5">
-        <div class="card shadow">
-            <div class="card-body">
-                <h3 class="text-center mb-4">Join DYNEVEST</h3>
+        <div class="card shadow border-0" style="border-radius: 15px;">
+            <div class="card-body p-4">
+                <h3 class="text-center mb-4 fw-bold">Join DYNEVEST</h3>
                 <form method="POST">
                     {% csrf_token %}
                     {{ form.as_p }}
-                    <button type="submit" class="btn btn-primary w-100">Register</button>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold py-2 shadow-sm">Create Account</button>
                 </form>
-                <p class="mt-3 text-center">Already have an account? <a href="#">Login here</a></p>
+
+                <!-- THE WORKING LINK IS BELOW -->
+                <p class="mt-4 text-center mb-0 text-muted">
+                    Already have an account?
+                    <a href="{% url 'login' %}" class="text-primary fw-bold text-decoration-none">Login here</a>
+                </p>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    /* This makes the Django form look a bit cleaner with Bootstrap */
+    form p label {
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #444;
+    }
+
+    form p input {
+        display: block;
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        margin-bottom: 15px;
+    }
+</style>
 {% endblock %}
