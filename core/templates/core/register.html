@@ -6,13 +6,26 @@
         <div class="card shadow border-0" style="border-radius: 15px;">
             <div class="card-body p-4">
                 <h3 class="text-center mb-4 fw-bold">Join DYNEVEST</h3>
-                <form method="POST">
-                    {% csrf_token %}
-                    {{ form.as_p }}
-                    <button type="submit" class="btn btn-primary w-100 fw-bold py-2 shadow-sm">Create Account</button>
+
+                <form method="POST" action="{% url 'register' %}">
+                    {% csrf_token %} <!-- THIS MUST BE HERE -->
+
+                    <!-- Email Field -->
+                    <div class="mb-3">
+                        <label class="fw-bold mb-1">Email Address</label>
+                        <input type="email" name="email" class="form-control" placeholder="name@example.com" required>
+                    </div>
+
+                    <!-- Django Default Fields (Username/Passwords) -->
+                    <div class="django-form-fields">
+                        {{ form.as_p }}
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 fw-bold py-2 shadow-sm mt-3">
+                        Create Account
+                    </button>
                 </form>
 
-                <!-- THE WORKING LINK IS BELOW -->
                 <p class="mt-4 text-center mb-0 text-muted">
                     Already have an account?
                     <a href="{% url 'login' %}" class="text-primary fw-bold text-decoration-none">Login here</a>
@@ -23,20 +36,26 @@
 </div>
 
 <style>
-    /* This makes the Django form look a bit cleaner with Bootstrap */
-    form p label {
+    /* Styling for the auto-generated Django fields */
+    .django-form-fields p label {
         font-weight: 600;
+        display: block;
         margin-bottom: 5px;
-        color: #444;
+        margin-top: 10px;
     }
 
-    form p input {
+    .django-form-fields p input {
         display: block;
         width: 100%;
         padding: 8px;
         border: 1px solid #ddd;
         border-radius: 8px;
-        margin-bottom: 15px;
+    }
+
+    .helptext {
+        font-size: 0.75rem;
+        color: #888;
+        display: block;
     }
 </style>
 {% endblock %}

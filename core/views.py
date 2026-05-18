@@ -1,109 +1,115 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from .models import Profile, Plan, Deposit, Investment, Withdrawal
-from django.contrib import messages
-from decimal import Decimal
 from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import render, get_object_or_404, redirect
-from .models import Deposit
+from django.utils import timezone
+from decimal import Decimal
+from .models import Profile, Plan, Deposit, Investment, Withdrawal
+from django.core.mail import send_mail
 
-@login_required
-def dashboard_view(request):
-    # This tries to get the profile. If it doesn't exist, it creates one!
-    profile, created = Profile.objects.get_or_create(user=request.user)
-    return render(request, 'core/dashboard.html', {'profile': profile})
-
-@login_required
-def dashboard_view(request):
-    from .models import Profile  # <--- Move it here locally
-    profile, created = Profile.objects.get_or_create(user=request.user)
-    return render(request, 'core/dashboard.html', {'profile': profile})
+# --- PUBLIC VIEWS ---
+def home_view(request):
+    return render(request, 'core/home.html')
 
 def register_view(request):
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
+        email_from_html = request.POST.get('email')
+        
         if form.is_valid():
-            form.save()
-            username = form.cleaned_data.get('username')
-            messages.success(request, f'Account created for {username}! You can now login.')
-            return redirect('login') # We will create the login url next
+            user = form.save(commit=False)
+            if email_from_html:
+                user.email = email_from_html
+            user.save()
+            
+            # Create the Profile immediately
+            Profile.objects.get_or_create(user=user)
+
+            # --- SEND WELCOME EMAIL ---
+            try:
+                send_mail(
+                    'Welcome to DYNEVEST',
+                    f'Hi {user.username}, thank you for registering with us!',
+                    'noreply@dynevest.com',
+                    [user.email],
+                    fail_silently=True,
+                )
+            except:
+                pass 
+
+            messages.success(request, f'Account created for {user.username}! You can now login.')
+            return redirect('login')
+        else:
+            # Loop through form errors so the user knows WHY it failed
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field.capitalize()}: {error}")
     else:
         form = UserCreationForm()
     return render(request, 'core/register.html', {'form': form})
 
-def home_view(request):
-    return render(request, 'core/home.html')
+# --- USER CORE VIEWS ---
+@login_required
+def dashboard_view(request):
+    profile, created = Profile.objects.get_or_create(user=request.user)
+    
+    deposits = Deposit.objects.filter(user=request.user).order_by('-created_at')
+    withdrawals = Withdrawal.objects.filter(user=request.user).order_by('-created_at')
+    active_investments = Investment.objects.filter(user=request.user, is_active=True)
 
+    for inv in active_investments:
+        days_active = (timezone.now() - inv.created_at).days
+        if days_active > 0:
+            daily_rate = (inv.plan.roi_percentage / Decimal('100')) / Decimal(inv.plan.duration_days)
+            earned = inv.amount * daily_rate * Decimal(days_active)
+            profile.total_profit = earned
+            profile.save()
+
+    return render(request, 'core/dashboard.html', {
+        'profile': profile,
+        'deposits': deposits,
+        'withdrawals': withdrawals,
+        'active_investments': active_investments
+    })
+
+@login_required
 def investment_plans_view(request):
     plans = Plan.objects.all()
     return render(request, 'core/plans.html', {'plans': plans})
 
 @login_required
+def buy_plan(request, plan_id):
+    plan = get_object_or_404(Plan, id=plan_id)
+    profile = request.user.profile
+
+    if profile.balance >= plan.price:
+        profile.balance -= plan.price
+        profile.save()
+
+        Investment.objects.create(
+            user=request.user,
+            plan=plan,
+            amount=plan.price,
+            is_active=True
+        )
+        messages.success(request, f"Successfully invested in the {plan.name} plan!")
+        return redirect('dashboard')
+    else:
+        messages.error(request, "Insufficient balance. Please deposit more funds.")
+        return redirect('deposit')
+
+# --- FINANCIAL VIEWS ---
+@login_required
 def deposit_view(request):
     if request.method == "POST":
         amount = request.POST.get('amount')
         proof = request.FILES.get('proof')
-        Deposit.objects.create(user=request.user, amount=amount, proof_of_payment=proof)
+        Deposit.objects.create(user=request.user, amount=amount, proof=proof)
+        messages.success(request, "Deposit submitted! Waiting for staff approval.")
         return redirect('dashboard')
     return render(request, 'core/deposit.html')
 
-@login_required
-def dashboard_view(request):
-    profile = request.user.profile
-    deposits = Deposit.objects.filter(user=request.user).order_by('-created_at')
-    
-    # NEW: Fetch active investments
-    active_investments = Investment.objects.filter(user=request.user, is_active=True)
-    
-    return render(request, 'core/dashboard.html', {
-        'profile': profile,
-        'deposits': deposits,
-        'active_investments': active_investments # Pass this to the template
-    })
-
-@login_required
-def dashboard(request):
-    profile = request.user.profile
-    # Get all deposits for this user, newest first
-    deposits = Deposit.objects.filter(user=request.user).order_some('-created_at')
-    active_investments = Investment.objects.filter(user=request.user, is_active=True)
-    # Note: We added total_profit to the model, so we don't need a new view query!
-    return render(request, 'core/dashboard.html', {
-        'profile': profile,
-        'deposits': deposits
-    })
-
-@login_required
-def transactions_view(request):
-    deposits = Deposit.objects.filter(user=request.user).order_by('-created_at')
-    withdrawals = Withdrawal.objects.filter(user=request.user).order_by('-created_at')
-    
-    return render(request, 'core/transactions.html', {
-        'deposits': deposits,
-        'withdrawals': withdrawals,
-    })
-
-@login_required
-def buy_plan(request, plan_id):
-    plan = Plan.objects.get(id=plan_id)
-    profile = request.user.profile
-
-    if profile.balance >= plan.price:
-        # 1. Deduct the money
-        profile.balance -= plan.price
-        profile.save()
-
-        # 2. Create the investment record
-        Investment.objects.create(user=request.user, plan=plan, amount=plan.price)
-        
-        messages.success(request, f"Successfully invested in {plan.name}!")
-        return redirect('dashboard')
-    else:
-        messages.error(request, "Insufficient funds. Please make a deposit.")
-        return redirect('deposit')
-    
 @login_required
 def withdraw_view(request):
     profile = request.user.profile
@@ -112,9 +118,7 @@ def withdraw_view(request):
         address = request.POST.get('wallet_address')
         
         if amount_str:
-            # CHANGE THIS LINE: float() -> Decimal()
             amount = Decimal(amount_str) 
-            
             if amount <= profile.balance:
                 profile.balance -= amount
                 profile.save()
@@ -130,9 +134,18 @@ def withdraw_view(request):
                 messages.error(request, "Insufficient funds!")
     return render(request, 'core/withdraw.html', {'profile': profile})
 
+@login_required
+def transactions_view(request):
+    deposits = Deposit.objects.filter(user=request.user).order_by('-created_at')
+    withdrawals = Withdrawal.objects.filter(user=request.user).order_by('-created_at')
+    return render(request, 'core/transactions.html', {
+        'deposits': deposits,
+        'withdrawals': withdrawals,
+    })
+
+# --- STAFF ADMIN VIEWS ---
 @staff_member_required
 def staff_dashboard(request):
-    # Get all deposits that are still 'Pending'
     pending_deposits = Deposit.objects.filter(status='Pending').order_by('-created_at')
     return render(request, 'core/staff_dashboard.html', {'pending': pending_deposits})
 
@@ -140,7 +153,8 @@ def staff_dashboard(request):
 def approve_deposit(request, pk):
     if request.method == "POST":
         deposit = get_object_or_404(Deposit, pk=pk)
-        # Changing this to 'Approved' triggers the balance update in your models.py!
-        deposit.status = 'Approved'
-        deposit.save()
+        if deposit.status == 'Pending':
+            deposit.status = 'Approved'
+            deposit.save() 
+            messages.success(request, f"Deposit for {deposit.user.username} approved!")
     return redirect('staff_dashboard')
