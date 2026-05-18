@@ -1,0 +1,1 @@
+web: gunicorn dynevest_pro.wsgi

@@ -25,8 +25,7 @@ SECRET_KEY = 'django-insecure-g56m*g=j@5eyur#(=i)+j03%s)0nb58lnrrg#3-sia+x419c*f
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['*']  # This allows the site to run on Render's URL
 
 # Application definition
 
@@ -42,6 +41,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # ADD THIS HERE
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -119,3 +119,6 @@ STATIC_URL = 'static/'
 
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'home'
+
+import os
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
