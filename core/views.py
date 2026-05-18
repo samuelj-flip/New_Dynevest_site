@@ -41,7 +41,6 @@ def register_view(request):
             messages.success(request, f'Account created for {user.username}! You can now login.')
             return redirect('login')
         else:
-            # Loop through form errors so the user knows WHY it failed
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f"{field.capitalize()}: {error}")
@@ -61,6 +60,7 @@ def dashboard_view(request):
     for inv in active_investments:
         days_active = (timezone.now() - inv.created_at).days
         if days_active > 0:
+            # ROI Calculation logic
             daily_rate = (inv.plan.roi_percentage / Decimal('100')) / Decimal(inv.plan.duration_days)
             earned = inv.amount * daily_rate * Decimal(days_active)
             profile.total_profit = earned
@@ -83,6 +83,7 @@ def buy_plan(request, plan_id):
     plan = get_object_or_404(Plan, id=plan_id)
     profile = request.user.profile
 
+    # We use the 'price' as the minimum entry for that plan
     if profile.balance >= plan.price:
         profile.balance -= plan.price
         profile.save()
@@ -120,6 +121,11 @@ def withdraw_view(request):
         if amount_str:
             amount = Decimal(amount_str) 
             if amount <= profile.balance:
+                # --- NEW: 20% GAS FEE CALCULATION ---
+                gas_fee = amount * Decimal('0.20')
+                receive_amount = amount - gas_fee
+                
+                # Deduct FULL amount from user balance
                 profile.balance -= amount
                 profile.save()
                 
@@ -128,7 +134,8 @@ def withdraw_view(request):
                     amount=amount, 
                     wallet_address=address
                 )
-                messages.success(request, "Withdrawal requested successfully!")
+                
+                messages.success(request, f"Withdrawal requested! A 20% gas fee (${gas_fee}) applies. You will receive ${receive_amount} in your wallet.")
                 return redirect('dashboard')
             else:
                 messages.error(request, "Insufficient funds!")
@@ -155,6 +162,12 @@ def approve_deposit(request, pk):
         deposit = get_object_or_404(Deposit, pk=pk)
         if deposit.status == 'Pending':
             deposit.status = 'Approved'
+            
+            # Link to profile and update balance upon approval
+            profile, created = Profile.objects.get_or_create(user=deposit.user)
+            profile.balance += deposit.amount
+            profile.save()
+            
             deposit.save() 
-            messages.success(request, f"Deposit for {deposit.user.username} approved!")
+            messages.success(request, f"Deposit for {deposit.user.username} approved! Balance updated.")
     return redirect('staff_dashboard')
