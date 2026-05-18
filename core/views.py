@@ -23,10 +23,8 @@ def register_view(request):
                 user.email = email_from_html
             user.save()
             
-            # Create the Profile immediately
             Profile.objects.get_or_create(user=user)
 
-            # --- SEND WELCOME EMAIL ---
             try:
                 send_mail(
                     'Welcome to DYNEVEST',
@@ -57,14 +55,28 @@ def dashboard_view(request):
     withdrawals = Withdrawal.objects.filter(user=request.user).order_by('-created_at')
     active_investments = Investment.objects.filter(user=request.user, is_active=True)
 
+    total_profit_accumulator = Decimal('0.00')
+
     for inv in active_investments:
-        days_active = (timezone.now() - inv.created_at).days
-        if days_active > 0:
-            # ROI Calculation logic
-            daily_rate = (inv.plan.roi_percentage / Decimal('100')) / Decimal(inv.plan.duration_days)
-            earned = inv.amount * daily_rate * Decimal(days_active)
-            profile.total_profit = earned
-            profile.save()
+        # Calculate time passed since investment
+        time_delta = timezone.now() - inv.created_at
+        days_active = time_delta.days
+        
+        # We also calculate hours/minutes to make the mining feel "live" even on day 0
+        seconds_active = time_delta.total_seconds()
+        hours_active = Decimal(seconds_active) / Decimal('3600')
+        
+        if seconds_active > 0:
+            # Interactive ROI: Uses profile.mining_rate (set by staff) 
+            # instead of a fixed plan rate.
+            # Calculation: Amount * Rate * (Hours / 24)
+            daily_growth = inv.amount * profile.mining_rate
+            earned = daily_growth * (hours_active / Decimal('24'))
+            total_profit_accumulator += earned
+
+    # Update and save the profile profit
+    profile.total_profit = total_profit_accumulator.quantize(Decimal('0.0001'))
+    profile.save()
 
     return render(request, 'core/dashboard.html', {
         'profile': profile,
@@ -83,7 +95,6 @@ def buy_plan(request, plan_id):
     plan = get_object_or_404(Plan, id=plan_id)
     profile = request.user.profile
 
-    # We use the 'price' as the minimum entry for that plan
     if profile.balance >= plan.price:
         profile.balance -= plan.price
         profile.save()
@@ -121,11 +132,9 @@ def withdraw_view(request):
         if amount_str:
             amount = Decimal(amount_str) 
             if amount <= profile.balance:
-                # --- NEW: 20% GAS FEE CALCULATION ---
                 gas_fee = amount * Decimal('0.20')
                 receive_amount = amount - gas_fee
                 
-                # Deduct FULL amount from user balance
                 profile.balance -= amount
                 profile.save()
                 
@@ -163,7 +172,6 @@ def approve_deposit(request, pk):
         if deposit.status == 'Pending':
             deposit.status = 'Approved'
             
-            # Link to profile and update balance upon approval
             profile, created = Profile.objects.get_or_create(user=deposit.user)
             profile.balance += deposit.amount
             profile.save()
