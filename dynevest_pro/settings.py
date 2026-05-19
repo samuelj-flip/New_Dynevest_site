@@ -119,11 +119,21 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
+# Static files (CSS, JavaScript, Images)
 STATIC_URL = 'static/'
+# This tells Render where to store static files for production
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# This allows WhiteNoise to compress your CSS/JS for faster loading
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'home'
 
+# Security: Required for logging into the admin panel on Render
+CSRF_TRUSTED_ORIGINS = ['https://dynevest.onrender.com']
+
+# --- AUTOMATED ADMIN CREATION ---
 from django.db.models.signals import post_migrate
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
@@ -131,11 +141,15 @@ from django.contrib.auth import get_user_model
 @receiver(post_migrate)
 def create_admin_account(sender, **kwargs):
     User = get_user_model()
-    if not User.objects.filter(username='batman').exists():
-        User.objects.create_superuser(
-            username='batman',
-            email='samuelsuperguy@gmail.com',
-            password='Password2026!'
-        )
-        print("✅ LIVE ADMIN CREATED: batman")
-# ------------------------------------
+    try:
+        if not User.objects.filter(username='batman').exists():
+            User.objects.create_superuser(
+                username='batman',
+                email='samuelsuperguy@gmail.com',
+                password='Password2026!'
+            )
+            print("✅ SUCCESS: Batman is now the live admin.")
+        else:
+            print("ℹ️ Batman already exists in the database.")
+    except Exception as e:
+        print(f"⚠️ Admin creation skipped: {e}")
