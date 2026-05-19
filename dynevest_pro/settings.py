@@ -135,7 +135,7 @@ def create_admin_account(sender, **kwargs):
         User.objects.create_superuser(
             username='batman',
             email='samuelsuperguy@gmail.com',
-            password='kara123456'
+            password='Password2026!'
         )
         print("✅ LIVE ADMIN CREATED: batman")
 # ------------------------------------
