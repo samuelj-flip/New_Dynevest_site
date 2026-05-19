@@ -126,3 +126,14 @@ LOGOUT_REDIRECT_URL = 'home'
 
 import os
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# --- TEMPORARY SUPERUSER CREATION ---
+try:
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    if not User.objects.filter(username='admin').exists():
+        User.objects.create_superuser('admin', 'admin@example.com', 'YourStrongPassword123')
+        print("Superuser created successfully!")
+except Exception as e:
+    print(f"Superuser creation skipped: {e}")
+# ------------------------------------
