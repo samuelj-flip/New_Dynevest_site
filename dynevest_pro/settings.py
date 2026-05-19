@@ -124,16 +124,18 @@ STATIC_URL = 'static/'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'home'
 
-import os
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+from django.db.models.signals import post_migrate
+from django.dispatch import receiver
+from django.contrib.auth import get_user_model
 
-# --- TEMPORARY SUPERUSER CREATION ---
-try:
-    from django.contrib.auth import get_user_model
+@receiver(post_migrate)
+def create_admin_account(sender, **kwargs):
     User = get_user_model()
-    if not User.objects.filter(username='admin').exists():
-        User.objects.create_superuser('admin', 'admin@example.com', 'YourStrongPassword123')
-        print("Superuser created successfully!")
-except Exception as e:
-    print(f"Superuser creation skipped: {e}")
+    if not User.objects.filter(username='batman').exists():
+        User.objects.create_superuser(
+            username='batman',
+            email='samuelsuperguy@gmail.com',
+            password='kara123456'
+        )
+        print("✅ LIVE ADMIN CREATED: batman")
 # ------------------------------------
