@@ -46,6 +46,7 @@ def register_view(request):
         form = UserCreationForm()
     return render(request, 'core/register.html', {'form': form})
 
+
 # --- USER CORE VIEWS ---
 @login_required
 def dashboard_view(request):
@@ -58,24 +59,26 @@ def dashboard_view(request):
     total_profit_accumulator = Decimal('0.00')
 
     for inv in active_investments:
-        # Calculate time passed since investment
         time_delta = timezone.now() - inv.created_at
-        days_active = time_delta.days
-        
-        # We also calculate hours/minutes to make the mining feel "live" even on day 0
         seconds_active = time_delta.total_seconds()
         hours_active = Decimal(seconds_active) / Decimal('3600')
         
         if seconds_active > 0:
-            # Interactive ROI: Uses profile.mining_rate (set by staff) 
-            # instead of a fixed plan rate.
             # Calculation: Amount * Rate * (Hours / 24)
             daily_growth = inv.amount * profile.mining_rate
             earned = daily_growth * (hours_active / Decimal('24'))
             total_profit_accumulator += earned
 
-    # Update and save the profile profit
-    profile.total_profit = total_profit_accumulator.quantize(Decimal('0.0001'))
+    # CLIENT REQUIREMENT CRITICAL FIX: 
+    # Calculate the newly generated profit delta and award it directly to the withdrawable mining pool
+    new_profit = total_profit_accumulator.quantize(Decimal('0.0001'))
+    profit_difference = new_profit - profile.total_profit
+
+    if profit_difference > 0:
+        profile.mining_balance += profit_difference
+
+    # Update historical tracking stats
+    profile.total_profit = new_profit
     profile.save()
 
     return render(request, 'core/dashboard.html', {
@@ -85,10 +88,12 @@ def dashboard_view(request):
         'active_investments': active_investments
     })
 
+
 @login_required
 def investment_plans_view(request):
     plans = Plan.objects.all()
     return render(request, 'core/plans.html', {'plans': plans})
+
 
 @login_required
 def buy_plan(request, plan_id):
@@ -111,7 +116,8 @@ def buy_plan(request, plan_id):
         messages.error(request, "Insufficient balance. Please deposit more funds.")
         return redirect('deposit')
 
-# --- FINANCIAL VIEWS ---
+
+# --- FINANCIAL & TRANSACTION VIEWS ---
 @login_required
 def deposit_view(request):
     if request.method == "POST":
@@ -122,33 +128,62 @@ def deposit_view(request):
         return redirect('dashboard')
     return render(request, 'core/deposit.html')
 
+
 @login_required
-def withdraw_view(request):
-    profile = request.user.profile
-    if request.method == "POST":
-        amount_str = request.POST.get('amount')
-        address = request.POST.get('wallet_address')
+def withdraw_funds_view(request):
+    """
+    Client Requirement Check: Users can ONLY withdraw funds accumulated via mining.
+    Invested capital remains entirely locked in profile.balance.
+    """
+    profile = request.user.profile  
+    
+    if request.method == 'POST':
+        amount_input = request.POST.get('amount', '0')
+        wallet_address = request.POST.get('wallet_address')
         
-        if amount_str:
-            amount = Decimal(amount_str) 
-            if amount <= profile.balance:
-                gas_fee = amount * Decimal('0.20')
-                receive_amount = amount - gas_fee
-                
-                profile.balance -= amount
-                profile.save()
-                
-                Withdrawal.objects.create(
-                    user=request.user, 
-                    amount=amount, 
-                    wallet_address=address
-                )
-                
-                messages.success(request, f"Withdrawal requested! A 20% gas fee (${gas_fee}) applies. You will receive ${receive_amount} in your wallet.")
-                return redirect('dashboard')
-            else:
-                messages.error(request, "Insufficient funds!")
-    return render(request, 'core/withdraw.html', {'profile': profile})
+        try:
+            amount_to_withdraw = Decimal(amount_input)
+        except (ValueError, TypeError):
+            return render(request, 'core/withdraw.html', {
+                'error': 'Invalid amount format entered.', 
+                'profile': profile,
+                'transactions': Withdrawal.objects.filter(user=request.user).order_by('-created_at')
+            })
+        
+        # Calculate standard 1.5% processing fee automatically
+        system_fee = amount_to_withdraw * Decimal('0.015')
+        total_deduction = amount_to_withdraw + system_fee
+        
+        # CLIENT SECURITY GUARD: Validate strictly against mining_balance
+        if profile.mining_balance < total_deduction:
+            return render(request, 'core/withdraw.html', {
+                'error': f'Insufficient mining earnings. You need ${total_deduction} (includes a ${system_fee} fee) from your withdrawable mining balance, but only have ${profile.mining_balance}.',
+                'profile': profile,
+                'transactions': Withdrawal.objects.filter(user=request.user).order_by('-created_at')
+            })
+            
+        # Deduct total funds explicitly from the withdrawable mining balance
+        profile.mining_balance -= total_deduction
+        profile.save()
+        
+        # Log the request safely into the Withdrawal model table
+        Withdrawal.objects.create(
+            user=request.user,
+            amount=amount_to_withdraw,
+            wallet_address=wallet_address,
+            status='Pending'
+        )
+        
+        messages.success(request, f"Withdrawal requested successfully! A processing fee of ${system_fee} was applied.")
+        return redirect('dashboard')
+
+    # GET: Populate historical transactions using the Withdrawal records loop
+    user_withdrawals = Withdrawal.objects.filter(user=request.user).order_by('-created_at')
+    return render(request, 'core/withdraw.html', {
+        'profile': profile,
+        'transactions': user_withdrawals
+    })
+
 
 @login_required
 def transactions_view(request):
@@ -159,11 +194,13 @@ def transactions_view(request):
         'withdrawals': withdrawals,
     })
 
+
 # --- STAFF ADMIN VIEWS ---
 @staff_member_required
 def staff_dashboard(request):
     pending_deposits = Deposit.objects.filter(status='Pending').order_by('-created_at')
     return render(request, 'core/staff_dashboard.html', {'pending': pending_deposits})
+
 
 @staff_member_required
 def approve_deposit(request, pk):
@@ -179,53 +216,3 @@ def approve_deposit(request, pk):
             deposit.save() 
             messages.success(request, f"Deposit for {deposit.user.username} approved! Balance updated.")
     return redirect('staff_dashboard')
-
-
-@login_required
-def withdraw_funds_view(request):
-    # Fetching the user's profile wallet balance
-    profile = request.user.profile  
-    
-    if request.method == 'POST':
-        amount_input = request.POST.get('amount', '0')
-        wallet_address = request.POST.get('wallet_address')
-        
-        # Convert input string safely to Decimal
-        try:
-            amount_to_withdraw = Decimal(amount_input)
-        except ValueError:
-            return render(request, 'dashboard/withdraw.html', {'error': 'Invalid amount entered.', 'profile': profile})
-        
-        # Auto-calculate a standard 1.5% processing fee internally
-        system_fee = amount_to_withdraw * Decimal('0.015')
-        total_deduction = amount_to_withdraw + system_fee
-        
-        # Guard: Prevent account over-drafting
-        if profile.balance < total_deduction:
-            return render(request, 'dashboard/withdraw.html', {
-                'error': 'Insufficient funds to cover the withdrawal and the 1.5% processing fee.',
-                'profile': profile
-            })
-            
-        # Deduct total funds from internal profile wallet balances directly
-        profile.balance -= total_deduction
-        profile.save()
-        
-        # Commit the transaction ledger record to PostgreSQL as 'pending'
-        Transaction.objects.create(
-            user=request.user,
-            amount=amount_to_withdraw,
-            fee=system_fee,
-            wallet_address=wallet_address,
-            transaction_type='withdrawal',
-            status='pending'
-        )
-        
-        return redirect('withdrawal_history')
-
-    # If it's a GET request, pass historical user transactions to the page
-    user_transactions = Transaction.objects.filter(user=request.user).order_by('-created_at')
-    return render(request, 'dashboard/withdraw.html', {
-        'profile': profile,
-        'transactions': user_transactions
-    })

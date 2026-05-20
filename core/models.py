@@ -6,20 +6,21 @@ from django.dispatch import receiver
 # 1. User Profile
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    total_profit = models.DecimalField(max_digits=12, decimal_places=2, default=0.00) 
+    balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00) # Deposited/Locked Capital
+    total_profit = models.DecimalField(max_digits=12, decimal_places=2, default=0.00) # All-time historical profit
     
-    # NEW: Staff can edit this to increase/decrease mining speed
-    # Example: 0.0500 = 5% daily growth
+    # NEW CLIENT FEATURE: This tracks available withdrawable mining returns.
+    mining_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00) 
+    
+    # Staff can edit this to increase/decrease mining speed (e.g., 0.0500 = 5% daily growth)
     mining_rate = models.DecimalField(max_digits=7, decimal_places=4, default=0.0100) 
 
     @property
     def total_assets(self):
         """
-        Calculates the sum of balance and profit on the fly.
-        Accessible in templates via {{ profile.total_assets }}
+        Calculates the sum of balance and available mining balance on the fly.
         """
-        return (self.balance or 0) + (self.total_profit or 0)
+        return (self.balance or 0) + (self.mining_balance or 0)
     
     def __str__(self):
         return f"{self.user.username}'s Profile"
@@ -62,7 +63,7 @@ class Deposit(models.Model):
     def __str__(self):
         return f"{self.user.username} - ${self.amount} ({self.status})"
 
-# 4. Withdrawals
+# 4. Withdrawals (This maps cleanly to your admin custom tracking)
 class Withdrawal(models.Model):
     STATUS_CHOICES = [('Pending', 'Pending'), ('Completed', 'Completed'), ('Declined', 'Declined')]
     
@@ -87,6 +88,7 @@ class Investment(models.Model):
         return f"{self.user.username} - {self.plan.name}"
     
 
+# 6. Unified Ledger Transactions (For logging and tracking history metrics)
 class Transaction(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending Review'),

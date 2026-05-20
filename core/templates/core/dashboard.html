@@ -2,40 +2,36 @@
 
 {% block content %}
 <div class="container py-4">
-    <!-- Header Section -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
         <div>
             <h2 class="fw-bold text-dark mb-0">Welcome back, {{ request.user.username }}!</h2>
-            <p class="text-muted">Your mining operations are currently <span class="text-success fw-bold">●
-                    Active</span></p>
+            <p class="text-muted">Your mining operations are currently <span class="text-success fw-bold">● Active</span></p>
         </div>
         <div class="mt-3 mt-md-0">
             <a href="{% url 'deposit' %}" class="btn btn-primary px-4 shadow-sm fw-bold">Deposit Funds</a>
-            <a href="{% url 'withdraw' %}" class="btn btn-outline-danger px-4 shadow-sm fw-bold">Withdraw</a>
+            <a href="{% url 'withdraw_funds' %}" class="btn btn-outline-danger px-4 shadow-sm fw-bold">Withdraw</a>
         </div>
     </div>
 
-    <!-- Stats Row -->
     <div class="row g-3 mb-4">
-        <!-- Main Balance -->
         <div class="col-md-3">
             <div class="card border-0 shadow-sm bg-primary text-white h-100">
                 <div class="card-body d-flex flex-column justify-content-center py-4">
-                    <h6 class="text-uppercase small fw-bold opacity-75 mb-2">Available Balance</h6>
+                    <h6 class="text-uppercase small fw-bold opacity-75 mb-2">Locked Capital</h6>
                     <h1 class="mb-0 fw-bold">${{ profile.balance }}</h1>
                 </div>
             </div>
         </div>
-        <!-- Mining Profit -->
+        
         <div class="col-md-3">
             <div class="card border-0 shadow-sm h-100 border-start border-success border-4">
                 <div class="card-body d-flex flex-column justify-content-center py-4">
-                    <h6 class="text-uppercase small fw-bold text-muted mb-2">Total Mining Profit</h6>
-                    <h1 class="mb-0 text-success fw-bold">${{ profile.total_profit }}</h1>
+                    <h6 class="text-uppercase small fw-bold text-muted mb-2">Withdrawable Balance</h6>
+                    <h1 class="mb-0 text-success fw-bold" id="live-mining-balance">${{ profile.mining_balance }}</h1>
                 </div>
             </div>
         </div>
-        <!-- NEW: Live Mining Rate (Interactive) -->
+        
         <div class="col-md-3">
             <div class="card border-0 shadow-sm h-100 border-start border-warning border-4">
                 <div class="card-body d-flex flex-column justify-content-center py-4">
@@ -44,13 +40,12 @@
                         {{ profile.mining_rate }} <small class="fs-6 text-muted">pts/sec</small>
                     </h2>
                     <div class="progress mt-2" style="height: 4px;">
-                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning"
-                            style="width: 70%"></div>
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" style="width: 70%"></div>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- Active Contracts -->
+        
         <div class="col-md-3">
             <div class="card border-0 shadow-sm h-100 border-start border-info border-4">
                 <div class="card-body d-flex flex-column justify-content-center py-4">
@@ -61,9 +56,7 @@
         </div>
     </div>
 
-    <!-- Content Row -->
     <div class="row">
-        <!-- Left Column: Active Contracts Table -->
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-header bg-white py-3 border-bottom-0">
@@ -89,14 +82,12 @@
                                     </td>
                                     <td class="fw-bold">${{ inv.amount }}</td>
                                     <td>
-                                        <!-- Displays the dynamic mining rate -->
                                         <span class="text-warning fw-bold">
                                             <i class="fas fa-bolt"></i> {{ profile.mining_rate }}x
                                         </span>
                                     </td>
                                     <td>
-                                        <span
-                                            class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success px-3">
+                                        <span class="badge rounded-pill bg-success bg-opacity-10 text-success border border-success px-3">
                                             <span class="spinner-grow spinner-grow-sm me-1" role="status"></span>
                                             Mining...
                                         </span>
@@ -117,31 +108,26 @@
             </div>
         </div>
 
-        <!-- Right Column: Sidebar Actions -->
         <div class="col-lg-4">
-            <!-- Quick Navigation -->
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body">
                     <h5 class="fw-bold mb-3">Account Shortcuts</h5>
                     <div class="list-group list-group-flush">
-                        <a href="{% url 'plans' %}"
-                            class="list-group-item list-group-item-action border-0 px-0 d-flex align-items-center">
+                        <a href="{% url 'plans' %}" class="list-group-item list-group-item-action border-0 px-0 d-flex align-items-center">
                             <div class="bg-light p-2 rounded-3 me-3">🚀</div>
                             <div>
                                 <div class="fw-bold">Upgrade Power</div>
                                 <small class="text-muted">Get higher mining returns</small>
                             </div>
                         </a>
-                        <a href="{% url 'transactions' %}"
-                            class="list-group-item list-group-item-action border-0 px-0 d-flex align-items-center">
+                        <a href="{% url 'transactions' %}" class="list-group-item list-group-item-action border-0 px-0 d-flex align-items-center">
                             <div class="bg-light p-2 rounded-3 me-3">📄</div>
                             <div>
                                 <div class="fw-bold">Transaction History</div>
                                 <small class="text-muted">View all your logs</small>
                             </div>
                         </a>
-                        <a href="#"
-                            class="list-group-item list-group-item-action border-0 px-0 d-flex align-items-center">
+                        <a href="#" class="list-group-item list-group-item-action border-0 px-0 d-flex align-items-center">
                             <div class="bg-light p-2 rounded-3 me-3">⚙️</div>
                             <div>
                                 <div class="fw-bold">Security Settings</div>
@@ -152,12 +138,10 @@
                 </div>
             </div>
 
-            <!-- Market Tip -->
             <div class="card bg-dark text-white border-0 shadow-sm">
                 <div class="card-body">
                     <h6 class="fw-bold small text-uppercase text-info">Pro Tip</h6>
-                    <p class="small mb-0">Our <b>Elite Plan</b> currently offers a 2.5x multiplier on your standard
-                        mining rate. Upgrade to maximize profit!</p>
+                    <p class="small mb-0">Our <b>Elite Plan</b> currently offers a 2.5x multiplier on your standard mining rate. Upgrade to maximize profit!</p>
                 </div>
             </div>
         </div>
@@ -169,30 +153,45 @@
         background-color: #f0f2f5;
         font-family: 'Inter', sans-serif;
     }
-
     .card {
         border-radius: 12px;
     }
-
     .badge {
         font-weight: 500;
     }
-
     .list-group-item {
         transition: all 0.2s;
         border-radius: 8px !important;
         margin-bottom: 5px;
     }
-
     .list-group-item:hover {
         background-color: #f8f9fa !important;
         transform: translateX(5px);
     }
-
-    /* Simple animation for the mining spinner */
     .spinner-grow-sm {
         width: 0.6rem;
         height: 0.6rem;
     }
 </style>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Get the initial database pool value safely
+        const balanceElement = document.getElementById("live-mining-balance");
+        let currentBalance = parseFloat(balanceElement.innerText.replace('$', ''));
+        
+        // Pull the dynamic database rate controlled by the staff portal
+        const baseRatePerSecond = parseFloat("{{ profile.mining_rate }}") * 0.0001; 
+        const activePlansCount = parseInt("{{ active_investments.count }}");
+
+        // Run ticker calculation loop if the client actually has active infrastructure running
+        if (activePlansCount > 0 && baseRatePerSecond > 0) {
+            setInterval(function () {
+                currentBalance += baseRatePerSecond;
+                // Render precisely bounded to 4 decimal figures for crypto aesthetic accuracy
+                balanceElement.innerText = "$" + currentBalance.toFixed(4);
+            }, 1000); // Trigger precise updates every single second
+        }
+    });
+</script>
 {% endblock %}

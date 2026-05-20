@@ -4,13 +4,26 @@
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-6">
+            
             <div class="card shadow border-0 mb-4">
                 <div class="card-body p-4">
                     <h3 class="text-center mb-4">Withdraw Funds</h3>
-                    <p class="text-center text-muted">Available Balance: <strong>${{ profile.balance }}</strong></p>
+                    
+                    <div class="row g-2 text-center mb-4 bg-light p-3 rounded-3 border">
+                        <div class="col-6 border-end">
+                            <small class="text-muted d-block uppercase tracking-wider font-weight-bold" style="font-size: 11px;">INVESTED CAPITAL</small>
+                            <span class="fw-bold text-dark fs-5">${{ profile.balance }}</span>
+                            <span class="d-block text-danger font-weight-light" style="font-size: 10px;">(Locked/Untouchable)</span>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted d-block uppercase tracking-wider font-weight-bold" style="font-size: 11px;">MINING BALANCE</small>
+                            <span class="fw-bold text-success fs-5">${{ profile.mining_balance }}</span>
+                            <span class="d-block text-success font-weight-light" style="font-size: 10px;">(Withdrawable Pool)</span>
+                        </div>
+                    </div>
 
                     {% if error %}
-                    <div class="alert alert-danger text-center" role="alert">
+                    <div class="alert alert-danger text-center small mb-3" role="alert">
                         {{ error }}
                     </div>
                     {% endif %}
@@ -18,48 +31,48 @@
                     <form method="POST">
                         {% csrf_token %}
                         <div class="mb-3">
-                            <label class="form-label">Amount to Withdraw ($)</label>
-                            <input type="number" name="amount" class="form-control" min="10" step="0.01" required>
+                            <label class="form-label small fw-bold text-secondary">Amount to Withdraw ($)</label>
+                            <input type="number" name="amount" class="form-control" min="10" step="0.01" placeholder="0.00" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Your Wallet Address (BTC/USDT)</label>
-                            <input type="text" name="wallet_address" class="form-control" placeholder="Enter wallet address" required>
+                            <label class="form-label small fw-bold text-secondary">Your Wallet Address (BTC/USDT)</label>
+                            <input type="text" name="wallet_address" class="form-control" placeholder="Enter network destination address" required>
                         </div>
-                        <button type="submit" class="btn btn-danger w-100 py-2">Request Withdrawal</button>
+                        <button type="submit" class="btn btn-danger w-100 py-2 fw-bold">Request Withdrawal</button>
                     </form>
                 </div>
             </div>
 
             <div class="card shadow border-0">
                 <div class="card-body p-4">
-                    <h5 class="card-title mb-3 font-weight-bold">Recent Activities</h5>
+                    <h5 class="card-title mb-3 fw-bold text-dark" style="font-size: 16px;">Recent Activities</h5>
                     
                     {% for tx in transactions %}
-                        {% if tx.status == 'pending' %}
+                        {% if tx.status == 'Pending' %}
                             <div class="alert alert-warning d-flex align-items-start border-0 shadow-sm p-3 mb-3 rounded-3" role="alert">
                                 <div class="spinner-border spinner-border-sm text-warning mt-1 me-3 flex-shrink-0" role="status">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
                                 <div>
-                                    <h6 class="alert-heading fw-bold mb-1" style="color: #664d03;">Withdrawal Processing</h6>
-                                    <p class="mb-1 small" style="color: #664d03;">
-                                        Your request to route <strong>${{ tx.amount }}</strong> to external address <code class="bg-light px-1 py-0.5 rounded text-dark font-monospace small">{{ tx.wallet_address }}</code> is currently undergoing network security audit.
+                                    <h6 class="alert-heading fw-bold mb-1" style="color: #664d03; font-size: 14px;">Withdrawal Processing</h6>
+                                    <p class="mb-1 small" style="color: #664d03; font-size: 13px;">
+                                        Your request to route <strong>${{ tx.amount }}</strong> to external address <code class="bg-white px-1 py-0.5 rounded text-dark font-monospace small">{{ tx.wallet_address }}</code> is currently undergoing network security audit.
                                     </p>
                                     <hr class="my-2 border-warning opacity-25">
                                     <p class="mb-0 text-muted" style="font-size: 11px;">
-                                        * An internal network processing fee of ${{ tx.fee }} was settled automatically from your profile ledger.
+                                        * An internal network processing fee of 1.5% applies and was factored into validation rules automatically.
                                     </p>
                                 </div>
                             </div>
                         {% else %}
                             <div class="p-3 bg-light rounded-3 mb-2 d-flex justify-content-between align-items-center border">
                                 <div>
-                                    <span class="text-secondary small d-block">{{ tx.created_at|date:"M d, Y" }}</span>
+                                    <span class="text-secondary small d-block" style="font-size: 11px;">{{ tx.created_at|date:"M d, Y" }}</span>
                                     <span class="fw-bold small text-dark">Withdrawal Request</span>
                                 </div>
                                 <div class="text-end">
                                     <span class="font-monospace fw-bold d-block small">${{ tx.amount }}</span>
-                                    <span class="badge text-uppercase tracking-wider mt-1 {% if tx.status == 'approved' %}bg-success{% else %}bg-danger{% endif %}" style="font-size: 9px;">
+                                    <span class="badge text-uppercase mt-1 {% if tx.status == 'Completed' %}bg-success{% else %}bg-danger{% endif %}" style="font-size: 9px; tracking-word: 1px;">
                                         {{ tx.status }}
                                     </span>
                                 </div>

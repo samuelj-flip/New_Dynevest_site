@@ -12,8 +12,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-g56m*g=j@5eyur#(=i)+j03%s)0nb58lnrrg#3-sia+x419c*f'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False  # Set to False for production
+# SECURITY WARNING: changed to True for local debugging to fix 500 errors!
+DEBUG = True  
 
 ALLOWED_HOSTS = ['dynevest.onrender.com', 'localhost', '127.0.0.1', '*']
 
@@ -83,15 +83,23 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = 'static/'
+
+# FIXED: Removed the extra underscore so Django recognizes your static folder path asset array!
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
+
+# This tells Django where to compile assets for production
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Redirects
 LOGIN_REDIRECT_URL = 'dashboard'
-LOGOUT_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'login'
 
 # Security: Required for Render HTTPS
 CSRF_TRUSTED_ORIGINS = ['https://dynevest.onrender.com']
+
 
 # --- AUTOMATED ADMIN CREATION & RECOVERY ---
 from django.db.models.signals import post_migrate
@@ -122,16 +130,3 @@ def create_admin_account(sender, **kwargs):
             
     except Exception as e:
         print(f"⚠️ Admin creation skipped: {e}")
-
-import os
-
-# Ensure STATIC_URL is set
-STATIC_URL = 'static/'
-
-# Add this line if it's missing so Django knows where to look!
-STATIC_FILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-]
-
-# This tells Django where to compile assets for production
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
