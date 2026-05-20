@@ -85,3 +85,27 @@ class Investment(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.plan.name}"
+    
+
+class Transaction(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved & Completed'),
+        ('failed', 'Rejected/Failed'),
+    ]
+    
+    TYPE_CHOICES = [
+        ('deposit', 'Deposit'),
+        ('withdrawal', 'Withdrawal'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='transactions')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    fee = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    wallet_address = models.CharField(max_length=255)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    transaction_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='withdrawal')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.transaction_type} - {self.amount} ({self.status})"

@@ -16,4 +16,5 @@ urlpatterns = [
     # Add these to your urlpatterns list
     path('staff-portal/', views.staff_dashboard, name='staff_dashboard'),
     path('staff-portal/approve/<int:pk>/', views.approve_deposit, name='approve_deposit'),
+    path('dashboard/withdraw/', views.withdraw_funds_view, name='withdraw_funds'),
 ]

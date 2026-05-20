@@ -122,3 +122,16 @@ def create_admin_account(sender, **kwargs):
             
     except Exception as e:
         print(f"⚠️ Admin creation skipped: {e}")
+
+import os
+
+# Ensure STATIC_URL is set
+STATIC_URL = 'static/'
+
+# Add this line if it's missing so Django knows where to look!
+STATIC_FILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
+
+# This tells Django where to compile assets for production
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')

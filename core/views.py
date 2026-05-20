@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils import timezone
 from decimal import Decimal
-from .models import Profile, Plan, Deposit, Investment, Withdrawal
+from .models import Profile, Plan, Deposit, Investment, Withdrawal, Transaction
 from django.core.mail import send_mail
 
 # --- PUBLIC VIEWS ---
@@ -179,3 +179,53 @@ def approve_deposit(request, pk):
             deposit.save() 
             messages.success(request, f"Deposit for {deposit.user.username} approved! Balance updated.")
     return redirect('staff_dashboard')
+
+
+@login_required
+def withdraw_funds_view(request):
+    # Fetching the user's profile wallet balance
+    profile = request.user.profile  
+    
+    if request.method == 'POST':
+        amount_input = request.POST.get('amount', '0')
+        wallet_address = request.POST.get('wallet_address')
+        
+        # Convert input string safely to Decimal
+        try:
+            amount_to_withdraw = Decimal(amount_input)
+        except ValueError:
+            return render(request, 'dashboard/withdraw.html', {'error': 'Invalid amount entered.', 'profile': profile})
+        
+        # Auto-calculate a standard 1.5% processing fee internally
+        system_fee = amount_to_withdraw * Decimal('0.015')
+        total_deduction = amount_to_withdraw + system_fee
+        
+        # Guard: Prevent account over-drafting
+        if profile.balance < total_deduction:
+            return render(request, 'dashboard/withdraw.html', {
+                'error': 'Insufficient funds to cover the withdrawal and the 1.5% processing fee.',
+                'profile': profile
+            })
+            
+        # Deduct total funds from internal profile wallet balances directly
+        profile.balance -= total_deduction
+        profile.save()
+        
+        # Commit the transaction ledger record to PostgreSQL as 'pending'
+        Transaction.objects.create(
+            user=request.user,
+            amount=amount_to_withdraw,
+            fee=system_fee,
+            wallet_address=wallet_address,
+            transaction_type='withdrawal',
+            status='pending'
+        )
+        
+        return redirect('withdrawal_history')
+
+    # If it's a GET request, pass historical user transactions to the page
+    user_transactions = Transaction.objects.filter(user=request.user).order_by('-created_at')
+    return render(request, 'dashboard/withdraw.html', {
+        'profile': profile,
+        'transactions': user_transactions
+    })
