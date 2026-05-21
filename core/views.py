@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils import timezone
 from decimal import Decimal
+from django.contrib.auth.models import User
 from .models import Profile, Plan, Deposit, Investment, Withdrawal, Transaction
 from django.core.mail import send_mail
 
@@ -131,10 +132,6 @@ def deposit_view(request):
 
 @login_required
 def withdraw_funds_view(request):
-    """
-    Client Requirement Check: Users can ONLY withdraw funds accumulated via mining.
-    Invested capital remains entirely locked in profile.balance.
-    """
     profile = request.user.profile  
     
     if request.method == 'POST':
@@ -150,11 +147,9 @@ def withdraw_funds_view(request):
                 'transactions': Withdrawal.objects.filter(user=request.user).order_by('-created_at')
             })
         
-        # Calculate standard 1.5% processing fee automatically
         system_fee = amount_to_withdraw * Decimal('0.015')
         total_deduction = amount_to_withdraw + system_fee
         
-        # CLIENT SECURITY GUARD: Validate strictly against mining_balance
         if profile.mining_balance < total_deduction:
             return render(request, 'core/withdraw.html', {
                 'error': f'Insufficient mining earnings. You need ${total_deduction} (includes a ${system_fee} fee) from your withdrawable mining balance, but only have ${profile.mining_balance}.',
@@ -162,11 +157,9 @@ def withdraw_funds_view(request):
                 'transactions': Withdrawal.objects.filter(user=request.user).order_by('-created_at')
             })
             
-        # Deduct total funds explicitly from the withdrawable mining balance
         profile.mining_balance -= total_deduction
         profile.save()
         
-        # Log the request safely into the Withdrawal model table
         Withdrawal.objects.create(
             user=request.user,
             amount=amount_to_withdraw,
@@ -177,7 +170,6 @@ def withdraw_funds_view(request):
         messages.success(request, f"Withdrawal requested successfully! A processing fee of ${system_fee} was applied.")
         return redirect('dashboard')
 
-    # GET: Populate historical transactions using the Withdrawal records loop
     user_withdrawals = Withdrawal.objects.filter(user=request.user).order_by('-created_at')
     return render(request, 'core/withdraw.html', {
         'profile': profile,
@@ -195,11 +187,66 @@ def transactions_view(request):
     })
 
 
-# --- STAFF ADMIN VIEWS ---
+# --- STAFF ADMIN COMMAND VIEWS ---
 @staff_member_required
 def staff_dashboard(request):
     pending_deposits = Deposit.objects.filter(status='Pending').order_by('-created_at')
-    return render(request, 'core/staff_dashboard.html', {'pending': pending_deposits})
+    pending_withdrawals = Withdrawal.objects.filter(status='Pending').order_by('-created_at')
+    
+    # Force profile generation for any trailing user accounts across the system
+    all_users = User.objects.all()
+    for user in all_users:
+        Profile.objects.get_or_create(user=user)
+        
+    user_profiles = Profile.objects.select_related('user').order_by('user__username')
+    
+    return render(request, 'core/staff_dashboard.html', {
+        'pending_deposits': pending_deposits,
+        'pending_withdrawals': pending_withdrawals,
+        'user_profiles': user_profiles
+    })
+
+
+@staff_member_required
+def manipulate_user(request, profile_id):
+    """
+    Unified Portal Control Endpoint: Allows modifying all central user profile fields
+    directly from the main dashboard screen interface.
+    """
+    if request.method == "POST":
+        profile = get_object_or_404(Profile, id=profile_id)
+        user = profile.user
+        
+        balance_input = request.POST.get('balance')
+        mining_balance_input = request.POST.get('mining_balance')
+        mining_rate_input = request.POST.get('mining_rate')
+        
+        # New account metadata inputs
+        email_input = request.POST.get('email')
+        is_active_input = request.POST.get('is_active')
+
+        try:
+            if balance_input is not None:
+                profile.balance = Decimal(balance_input)
+            if mining_balance_input is not None:
+                profile.mining_balance = Decimal(mining_balance_input)
+            if mining_rate_input is not None:
+                profile.mining_rate = Decimal(mining_rate_input)
+            
+            # Save User model details directly from the single portal view
+            if email_input is not None:
+                user.email = email_input
+            
+            # Toggle user login permissions (Suspended vs Active)
+            user.is_active = True if is_active_input == "True" else False
+                
+            user.save()
+            profile.save()
+            messages.success(request, f"Successfully updated all details for user: {user.username}!")
+        except (ValueError, TypeError):
+            messages.error(request, "Failed to update user parameters. Verify your numeric entries.")
+            
+    return redirect('staff_dashboard')
 
 
 @staff_member_required
@@ -215,4 +262,15 @@ def approve_deposit(request, pk):
             
             deposit.save() 
             messages.success(request, f"Deposit for {deposit.user.username} approved! Balance updated.")
+    return redirect('staff_dashboard')
+
+
+@staff_member_required
+def approve_withdrawal(request, pk):
+    if request.method == "POST":
+        withdrawal = get_object_or_404(Withdrawal, pk=pk)
+        if withdrawal.status == 'Pending':
+            withdrawal.status = 'Approved'
+            withdrawal.save()
+            messages.success(request, f"Withdrawal for {withdrawal.user.username} has been marked as completed/approved.")
     return redirect('staff_dashboard')

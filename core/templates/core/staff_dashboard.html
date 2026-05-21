@@ -1,53 +1,229 @@
 {% extends 'core/base.html' %}
 {% block content %}
-<div class="container mt-5">
-    <div class="card border-0 shadow-lg">
+<div class="container my-5">
+
+    <div class="card border-0 shadow-lg mb-5">
         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-            <h4 class="mb-0">Staff Approval Terminal</h4>
-            <span class="badge bg-light text-primary">{{ pending.count }} Pending</span>
+            <h4 class="mb-0"><i class="bi bi-wallet2 me-2"></i>Staff Deposit Approvals</h4>
+            <span class="badge bg-light text-primary">{{ pending_deposits.count }} Pending</span>
         </div>
-        <div class="card-body">
-            <table class="table table-hover">
-                <thead class="table-light">
-                    <tr>
-                        <th>User</th>
-                        <th>Amount</th>
-                        <th>Proof</th>
-                        <th>Date</th>
-                        <th class="text-end">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for tx in pending %}
-                    <tr>
-                        <td><strong>{{ tx.user.username }}</strong></td>
-                        <td class="text-success fw-bold">${{ tx.amount }}</td>
-                        <td>
-                            {% if tx.proof %}
-                            <a href="{{ tx.proof.url }}" target="_blank" class="btn btn-sm btn-outline-secondary">View
-                                Proof</a>
-                            {% else %}
-                            No Proof
-                            {% endif %}
-                        </td>
-                        <td>{{ tx.created_at|date:"M d, H:i" }}</td>
-                        <td class="text-end">
-                            <form method="POST" action="{% url 'approve_deposit' tx.pk %}" style="display:inline;">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-success btn-sm px-3">Approve</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="text-center py-5 text-muted">
-                            <p class="mb-0">All clear! No pending deposits to process.</p>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">User</th>
+                            <th>Amount</th>
+                            <th>Proof</th>
+                            <th>Submitted Date</th>
+                            <th class="text-end pe-4">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in pending_deposits %}
+                        <tr>
+                            <td class="ps-4"><strong>{{ tx.user.username }}</strong></td>
+                            <td class="text-success fw-bold">${{ tx.amount }}</td>
+                            <td>
+                                {% if tx.proof %}
+                                <a href="{{ tx.proof.url }}" target="_blank" class="btn btn-sm btn-outline-secondary">View Proof</a>
+                                {% else %}
+                                <span class="text-muted small">No Proof Uploaded</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ tx.created_at|date:"M d, H:i" }}</td>
+                            <td class="text-end pe-4">
+                                <form method="POST" action="{% url 'approve_deposit' tx.pk %}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-success btn-sm px-3 fw-semibold">Approve</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="bi bi-check-circle text-success fs-2 mb-2 d-block"></i>
+                                <p class="mb-0">All clear! No pending deposits to process.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
+
+    <div class="card border-0 shadow-lg mb-5">
+        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+            <h4 class="mb-0 fw-bold"><i class="bi bi-cash-stack me-2"></i>Staff Withdrawal Requests</h4>
+            <span class="badge bg-dark text-white">{{ pending_withdrawals.count }} Pending</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">User</th>
+                            <th>Amount Requested</th>
+                            <th>Wallet Address Target</th>
+                            <th>Requested Date</th>
+                            <th class="text-end pe-4">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for wx in pending_withdrawals %}
+                        <tr>
+                            <td class="ps-4"><strong>{{ wx.user.username }}</strong></td>
+                            <td class="text-danger fw-bold">${{ wx.amount }}</td>
+                            <td><code class="text-dark bg-light px-2 py-1 rounded border small">{{ wx.wallet_address }}</code></td>
+                            <td>{{ wx.created_at|date:"M d, H:i" }}</td>
+                            <td class="text-end pe-4">
+                                <form method="POST" action="{% url 'approve_withdrawal' wx.pk %}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-warning btn-sm px-3 fw-semibold text-dark">Approve / Complete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="bi bi-patch-check text-warning fs-2 mb-2 d-block"></i>
+                                <p class="mb-0">No pending withdrawal requests in queue.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-lg">
+        <div class="card-header bg-dark text-white p-3">
+            <div class="row align-items-center g-3">
+                <div class="col-12 col-md-6">
+                    <h4 class="mb-0"><i class="bi bi-sliders me-2"></i>Live User Dashboard Manipulation Tool</h4>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text bg-secondary text-white border-secondary">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" 
+                               id="userSearchInput" 
+                               class="form-control bg-white text-dark border-secondary px-3" 
+                               placeholder="Type to search username or email..." 
+                               style="display: block !important; visibility: visible !important; min-height: 38px;">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0" id="manipulationTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th class="ps-4 py-3" style="width: 20%;">Account Username</th>
+                            <th class="py-3" colspan="4">Unified Portal Controls (Balances, Status & Metadata)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if user_profiles %}
+                            {% for profile in user_profiles %}
+                            <tr class="table-light user-row-header" data-search-key="{{ profile.user.username|lower }} {{ profile.user.email|lower }}">
+                                <td colspan="5" class="ps-4 py-2 border-bottom-0">
+                                    <span class="fw-bold text-primary fs-5">{{ profile.user.username }}</span>
+                                    {% if profile.user.is_staff %}
+                                        <span class="badge bg-danger ms-2">Staff Member Account</span>
+                                    {% endif %}
+                                    <span class="text-muted small ms-3">Profile Database ID: #{{ profile.id }}</span>
+                                </td>
+                            </tr>
+                            
+                            <tr class="border-bottom user-row-form" data-search-key="{{ profile.user.username|lower }} {{ profile.user.email|lower }}">
+                                <td colspan="5" class="ps-4 pe-4 pb-3 pt-0">
+                                    <form method="POST" action="{% url 'manipulate_user' profile.id %}" class="row g-2 align-items-end">
+                                        {% csrf_token %}
+                                        
+                                        <div class="col-md-3">
+                                            <label class="form-label small fw-semibold text-muted mb-1">Email</label>
+                                            <input type="email" class="form-control form-control-sm" name="email" value="{{ profile.user.email }}">
+                                        </div>
+
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold text-muted mb-1">Balance</label>
+                                            <input type="number" step="0.01" class="form-control form-control-sm" name="balance" value="{{ profile.balance }}">
+                                        </div>
+
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold text-muted mb-1">Mining Balance</label>
+                                            <input type="number" step="0.0001" class="form-control form-control-sm" name="mining_balance" value="{{ profile.mining_balance }}">
+                                        </div>
+
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold text-muted mb-1">Mining Rate</label>
+                                            <input type="number" step="0.0001" class="form-control form-control-sm" name="mining_rate" value="{{ profile.mining_rate }}">
+                                        </div>
+
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold text-muted mb-1">Status</label>
+                                            <select class="form-select form-select-sm fw-bold text-dark" name="is_active">
+                                                <option value="True" {% if profile.user.is_active %}selected{% endif %}>🟢 Active</option>
+                                                <option value="False" {% if not profile.user.is_active %}selected{% endif %}>🔴 Suspended</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="col text-end">
+                                            <button type="submit" class="btn btn-dark btn-sm w-100 py-2">Save</button>
+                                        </div>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">No client accounts found.</td>
+                            </tr>
+                        {% endif %}
+                        
+                        <tr id="searchEmptyRow" style="display: none;">
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="bi bi-exclamation-circle text-danger fs-3 mb-2 d-block"></i>
+                                <p class="mb-0 fw-semibold">No users matching that search query could be found.</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
 </div>
+
+<script>
+    document.getElementById('userSearchInput').addEventListener('input', function() {
+        const searchQuery = this.value.toLowerCase().trim();
+        const rows = document.querySelectorAll('#manipulationTable tbody tr[data-search-key]');
+        let totalMatches = 0;
+
+        rows.forEach(row => {
+            const searchKey = row.getAttribute('data-search-key');
+            if (searchKey.includes(searchQuery)) {
+                row.style.display = '';
+                if (row.classList.contains('user-row-header')) {
+                    totalMatches++;
+                }
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        const emptyStateRow = document.getElementById('searchEmptyRow');
+        if (totalMatches === 0 && searchQuery !== '') {
+            emptyStateRow.style.display = '';
+        } else {
+            emptyStateRow.style.display = 'none';
+        }
+    });
+</script>
 {% endblock %}
