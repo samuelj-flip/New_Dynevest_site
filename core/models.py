@@ -115,3 +115,29 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.transaction_type} - {self.amount} ({self.status})"
+
+
+class IntegrationSettings(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='integrations')
+    connected_service_name = models.CharField(max_length=50, default="Coinbase API")
+    public_identifier = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True, 
+        help_text="The public API key or username used for read-only data synchronization."
+    )
+    is_verified = models.BooleanField(default=False)
+    last_synced = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.connected_service_name} Settings"
+    
+
+class AccountCompliance(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='compliance')
+    is_premium_verified = models.BooleanField(default=False)
+    verification_progress_percentage = models.IntegerField(default=0)  # Real progress tracking
+    required_deposit_received = models.BooleanField(default=False)
+    
+    def __str__(self):
+        return f"{self.user.username} - Compliance Profile"

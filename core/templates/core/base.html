@@ -53,8 +53,22 @@
                     </li>
                     <li class="nav-item"><a class="nav-link fw-semibold px-3" href="{% url 'plans' %}">Mining Plans</a>
                     </li>
+
+                    <li class="nav-item"><a class="nav-link fw-semibold px-3" href="{% url 'integrations' %}">API
+                            Sync</a>
+                    </li>
+
                     <li class="nav-item"><a class="nav-link fw-semibold px-3"
-                            href="{% url 'transactions' %}">History</a></li>
+                            href="{% url 'transactions' %}">History</a>
+                    </li>
+
+                    {% if user.is_staff %}
+                    <li class="nav-item me-lg-2">
+                        <a class="btn btn-danger btn-sm px-3 text-white fw-bold shadow-sm"
+                            href="{% url 'staff_dashboard' %}">Staff Portal</a>
+                    </li>
+                    {% endif %}
+
                     <li class="nav-item ms-lg-3">
                         <form action="{% url 'logout' %}" method="post" class="m-0">
                             {% csrf_token %}

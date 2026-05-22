@@ -6,8 +6,10 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.utils import timezone
 from decimal import Decimal
 from django.contrib.auth.models import User
-from .models import Profile, Plan, Deposit, Investment, Withdrawal, Transaction
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail
+from django.db import transaction  # ADDED for database safety
+from .models import Profile, Plan, Deposit, Investment, Withdrawal, Transaction, IntegrationSettings
 
 # --- PUBLIC VIEWS ---
 def home_view(request):
@@ -19,12 +21,14 @@ def register_view(request):
         email_from_html = request.POST.get('email')
         
         if form.is_valid():
-            user = form.save(commit=False)
-            if email_from_html:
-                user.email = email_from_html
-            user.save()
-            
-            Profile.objects.get_or_create(user=user)
+            with transaction.atomic():
+                user = form.save(commit=False)
+                if email_from_html:
+                    user.email = email_from_html
+                user.save()
+                
+                Profile.objects.get_or_create(user=user)
+                IntegrationSettings.objects.get_or_create(user=user)
 
             try:
                 send_mail(
@@ -65,20 +69,16 @@ def dashboard_view(request):
         hours_active = Decimal(seconds_active) / Decimal('3600')
         
         if seconds_active > 0:
-            # Calculation: Amount * Rate * (Hours / 24)
             daily_growth = inv.amount * profile.mining_rate
             earned = daily_growth * (hours_active / Decimal('24'))
             total_profit_accumulator += earned
 
-    # CLIENT REQUIREMENT CRITICAL FIX: 
-    # Calculate the newly generated profit delta and award it directly to the withdrawable mining pool
     new_profit = total_profit_accumulator.quantize(Decimal('0.0001'))
     profit_difference = new_profit - profile.total_profit
 
     if profit_difference > 0:
         profile.mining_balance += profit_difference
 
-    # Update historical tracking stats
     profile.total_profit = new_profit
     profile.save()
 
@@ -102,15 +102,16 @@ def buy_plan(request, plan_id):
     profile = request.user.profile
 
     if profile.balance >= plan.price:
-        profile.balance -= plan.price
-        profile.save()
+        with transaction.atomic():
+            profile.balance -= plan.price
+            profile.save()
 
-        Investment.objects.create(
-            user=request.user,
-            plan=plan,
-            amount=plan.price,
-            is_active=True
-        )
+            Investment.objects.create(
+                user=request.user,
+                plan=plan,
+                amount=plan.price,
+                is_active=True
+            )
         messages.success(request, f"Successfully invested in the {plan.name} plan!")
         return redirect('dashboard')
     else:
@@ -126,9 +127,11 @@ def deposit_view(request):
         proof = request.FILES.get('proof')
         Deposit.objects.create(user=request.user, amount=amount, proof=proof)
         messages.success(request, "Deposit submitted! Waiting for staff approval.")
-        return redirect('dashboard')
+        
+        # CHANGE THIS LINE HERE:
+        return redirect('compliance_status') 
+        
     return render(request, 'core/deposit.html')
-
 
 @login_required
 def withdraw_funds_view(request):
@@ -147,7 +150,6 @@ def withdraw_funds_view(request):
                 'transactions': Withdrawal.objects.filter(user=request.user).order_by('-created_at')
             })
         
-        # 🛠️ CLIENT REQUIREMENT: Intercept Withdrawal with External Deposit Restriction
         if profile.require_external_deposit:
             percentage = profile.required_deposit_percentage
             needed_deposit = amount_to_withdraw * (Decimal(percentage) / Decimal('100'))
@@ -174,15 +176,16 @@ def withdraw_funds_view(request):
                 'transactions': Withdrawal.objects.filter(user=request.user).order_by('-created_at')
             })
             
-        profile.mining_balance -= total_deduction
-        profile.save()
-        
-        Withdrawal.objects.create(
-            user=request.user,
-            amount=amount_to_withdraw,
-            wallet_address=wallet_address,
-            status='Pending'
-        )
+        with transaction.atomic():
+            profile.mining_balance -= total_deduction
+            profile.save()
+            
+            Withdrawal.objects.create(
+                user=request.user,
+                amount=amount_to_withdraw,
+                wallet_address=wallet_address,
+                status='Pending'
+            )
         
         messages.success(request, f"Withdrawal requested successfully! A processing fee of ${system_fee} was applied.")
         return redirect('dashboard')
@@ -210,12 +213,26 @@ def staff_dashboard(request):
     pending_deposits = Deposit.objects.filter(status='Pending').order_by('-created_at')
     pending_withdrawals = Withdrawal.objects.filter(status='Pending').order_by('-created_at')
     
-    # Force profile generation for any trailing user accounts across the system
     all_users = User.objects.all()
-    for user in all_users:
-        Profile.objects.get_or_create(user=user)
+    
+    existing_profiles = set(Profile.objects.values_list('user_id', flat=True))
+    existing_integrations = set(IntegrationSettings.objects.values_list('user_id', flat=True))
+    
+    profiles_to_create = [Profile(user=u) for u in all_users if u.id not in existing_profiles]
+    integrations_to_create = [IntegrationSettings(user=u) for u in all_users if u.id not in existing_integrations]
+    
+    if profiles_to_create:
+        Profile.objects.bulk_create(profiles_to_create)
+    if integrations_to_create:
+        IntegrationSettings.objects.bulk_create(integrations_to_create)
         
-    user_profiles = Profile.objects.select_related('user').order_by('user__username')
+    # OPTIMIZATION: Prefetching nested relation user__integrationsettings avoids N+1 queries in the loop
+    user_profiles = Profile.objects.select_related('user', 'user__integrations').order_by('user__username')    
+    for p in user_profiles:
+        try:
+            p.user.integrations = p.user.integrationsettings
+        except (ObjectDoesNotExist, AttributeError):
+            p.user.integrations = IntegrationSettings.objects.get_or_create(user=p.user)[0]
     
     return render(request, 'core/staff_dashboard.html', {
         'pending_deposits': pending_deposits,
@@ -225,26 +242,24 @@ def staff_dashboard(request):
 
 
 @staff_member_required
+@transaction.atomic  # OPTIMIZATION: Wrapped in a database transaction block
 def manipulate_user(request, profile_id):
-    """
-    Unified Portal Control Endpoint: Allows modifying all central user profile fields
-    directly from the main dashboard screen interface.
-    """
     if request.method == "POST":
         profile = get_object_or_404(Profile, id=profile_id)
         user = profile.user
+        integration, created = IntegrationSettings.objects.get_or_create(user=user)
         
         balance_input = request.POST.get('balance')
         mining_balance_input = request.POST.get('mining_balance')
         mining_rate_input = request.POST.get('mining_rate')
-        
-        # New account metadata inputs
         email_input = request.POST.get('email')
         is_active_input = request.POST.get('is_active')
         
-        # 🛠️ New Client Requirement Controls
         require_deposit_input = request.POST.get('require_external_deposit')
         deposit_percentage_input = request.POST.get('required_deposit_percentage')
+        
+        public_id_input = request.POST.get('public_identifier')
+        is_verified_input = request.POST.get('is_verified')
 
         try:
             if balance_input is not None:
@@ -254,21 +269,25 @@ def manipulate_user(request, profile_id):
             if mining_rate_input is not None:
                 profile.mining_rate = Decimal(mining_rate_input)
             
-            # Update Client Requirement Flags
             if require_deposit_input is not None:
                 profile.require_external_deposit = (require_deposit_input == "True")
             if deposit_percentage_input is not None:
                 profile.required_deposit_percentage = int(deposit_percentage_input)
             
-            # Save User model details directly from the single portal view
+            if public_id_input is not None:
+                cleaned_id = public_id_input.strip()
+                integration.public_identifier = cleaned_id if cleaned_id else None
+            if is_verified_input is not None:
+                integration.is_verified = (is_verified_input == "True")
+            
             if email_input is not None:
                 user.email = email_input
             
-            # Toggle user login permissions (Suspended vs Active)
-            user.is_active = True if is_active_input == "True" else False
+            user.is_active = (is_active_input == "True")
                 
             user.save()
             profile.save()
+            integration.save()
             messages.success(request, f"Successfully updated all details for user: {user.username}!")
         except (ValueError, TypeError):
             messages.error(request, "Failed to update user parameters. Verify your numeric entries.")
@@ -277,6 +296,7 @@ def manipulate_user(request, profile_id):
 
 
 @staff_member_required
+@transaction.atomic
 def approve_deposit(request, pk):
     if request.method == "POST":
         deposit = get_object_or_404(Deposit, pk=pk)
@@ -301,3 +321,33 @@ def approve_withdrawal(request, pk):
             withdrawal.save()
             messages.success(request, f"Withdrawal for {withdrawal.user.username} has been marked as completed/approved.")
     return redirect('staff_dashboard')
+
+
+@login_required
+def integration_settings_view(request):
+    integration, created = IntegrationSettings.objects.get_or_create(user=request.user)
+    
+    if request.method == "POST":
+        public_id = request.POST.get('public_id', '').strip()
+        
+        integration.public_identifier = public_id if public_id else None
+        integration.is_verified = False  
+        integration.save()
+        
+        return redirect('integrations')  
+        
+    return render(request, 'core/integrations.html', {'integration': integration})
+
+@login_required
+def compliance_status_view(request):
+    # Fetching the existing Profile model associated with the user
+    profile = get_object_or_404(Profile, user=request.user)
+    
+    # Mapping profile values to the compliance context structure
+    context = {
+        'compliance': {
+            'verification_progress_percentage': 50 if profile.require_external_deposit else 100,
+            'required_deposit_received': not profile.require_external_deposit
+        }
+    }
+    return render(request, 'core/compliance_status.html', context)

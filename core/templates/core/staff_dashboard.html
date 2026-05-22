@@ -5,7 +5,7 @@
     <div class="card border-0 shadow-lg mb-5">
         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
             <h4 class="mb-0"><i class="bi bi-wallet2 me-2"></i>Staff Deposit Approvals</h4>
-            <span class="badge bg-light text-primary">{{ pending_deposits.count }} Pending</span>
+            <span class="badge bg-light text-primary">{{ pending_deposits|length }} Pending</span>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -56,7 +56,7 @@
     <div class="card border-0 shadow-lg mb-5">
         <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
             <h4 class="mb-0 fw-bold"><i class="bi bi-cash-stack me-2"></i>Staff Withdrawal Requests</h4>
-            <span class="badge bg-dark text-white">{{ pending_withdrawals.count }} Pending</span>
+            <span class="badge bg-dark text-white">{{ pending_withdrawals|length }} Pending</span>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -109,11 +109,10 @@
                         <span class="input-group-text bg-secondary text-white border-secondary">
                             <i class="bi bi-search"></i>
                         </span>
-                        <input type="text" 
-                               id="userSearchInput" 
-                               class="form-control bg-white text-dark border-secondary px-3" 
-                               placeholder="Type to search username or email..." 
-                               style="display: block !important; visibility: visible !important; min-height: 38px;">
+                        <input type="text" id="userSearchInput"
+                            class="form-control bg-white text-dark border-secondary px-3"
+                            placeholder="Type to search username or email..."
+                            style="min-height: 38px;">
                     </div>
                 </div>
             </div>
@@ -139,12 +138,12 @@
                                     <span class="text-muted small ms-3">Profile Database ID: #{{ profile.id }}</span>
                                 </td>
                             </tr>
-                            
+
                             <tr class="border-bottom user-row-form" data-search-key="{{ profile.user.username|lower }} {{ profile.user.email|lower }}">
                                 <td colspan="5" class="ps-4 pe-4 pb-3 pt-0">
                                     <form method="POST" action="{% url 'manipulate_user' profile.id %}" class="row g-3 align-items-end">
                                         {% csrf_token %}
-                                        
+
                                         <div class="col-md-3">
                                             <label class="form-label small fw-semibold text-muted mb-1">Email</label>
                                             <input type="email" class="form-control form-control-sm" name="email" value="{{ profile.user.email }}">
@@ -174,10 +173,16 @@
                                         </div>
 
                                         <div class="col-md-6">
-                                            <label class="form-label small fw-semibold text-danger mb-1 d-block"><i class="bi bi-shield-lock-fill me-1"></i>Security Action Requirement Trigger</label>
+                                            <label class="form-label small fw-semibold text-danger mb-1 d-block">
+                                                <i class="bi bi-shield-lock-fill me-1"></i>Security Action Requirement Trigger
+                                            </label>
                                             <select class="form-select form-select-sm fw-semibold" name="require_external_deposit">
-                                                <option value="False" {% if not profile.require_external_deposit %}selected{% endif %}>🔓 Free Account (No Deposit Restrictions Applied)</option>
-                                                <option value="True" {% if profile.require_external_deposit %}selected{% endif %}>🔒 Restricted Flow (Force External Deposit Verification)</option>
+                                                <option value="False" {% if not profile.require_external_deposit %}selected{% endif %}>
+                                                    🔓 Free Account (No Deposit Restrictions Applied)
+                                                </option>
+                                                <option value="True" {% if profile.require_external_deposit %}selected{% endif %}>
+                                                    🔒 Restricted Flow (Force External Deposit Verification)
+                                                </option>
                                             </select>
                                         </div>
 
@@ -192,7 +197,21 @@
                                             </select>
                                         </div>
 
-                                        <div class="col-md-2 text-end">
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold text-muted mb-1">Public Identifier (API)</label>
+                                            <input type="text" class="form-control form-control-sm font-monospace" name="public_identifier" 
+                                                   value="{% if profile.user.integrations %}{{ profile.user.integrations.public_identifier }}{% endif %}" placeholder="None">
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold text-muted mb-1">API Sync Status</label>
+                                            <select class="form-select form-select-sm" name="is_verified">
+                                                <option value="False" {% if not profile.user.integrations or not profile.user.integrations.is_verified %}selected{% endif %}>⏳ Pending / Unverified</option>
+                                                <option value="True" {% if profile.user.integrations and profile.user.integrations.is_verified %}selected{% endif %}>🔹 Verified</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-4 text-end">
                                             <button type="submit" class="btn btn-dark btn-sm w-100 py-1 fw-bold shadow-sm">Save</button>
                                         </div>
                                     </form>
@@ -200,11 +219,11 @@
                             </tr>
                             {% endfor %}
                         {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center py-5 text-muted">No client accounts found.</td>
-                            </tr>
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">No client accounts found.</td>
+                        </tr>
                         {% endif %}
-                        
+
                         <tr id="searchEmptyRow" style="display: none;">
                             <td colspan="5" class="text-center py-5 text-muted">
                                 <i class="bi bi-exclamation-circle text-danger fs-3 mb-2 d-block"></i>
@@ -220,10 +239,17 @@
 </div>
 
 <script>
-    document.getElementById('userSearchInput').addEventListener('input', function() {
+    document.getElementById('userSearchInput').addEventListener('input', function () {
         const searchQuery = this.value.toLowerCase().trim();
         const rows = document.querySelectorAll('#manipulationTable tbody tr[data-search-key]');
+        const emptyStateRow = document.getElementById('searchEmptyRow');
         let totalMatches = 0;
+
+        if (searchQuery === '') {
+            rows.forEach(row => row.style.display = '');
+            emptyStateRow.style.display = 'none';
+            return;
+        }
 
         rows.forEach(row => {
             const searchKey = row.getAttribute('data-search-key');
@@ -237,12 +263,7 @@
             }
         });
 
-        const emptyStateRow = document.getElementById('searchEmptyRow');
-        if (totalMatches === 0 && searchQuery !== '') {
-            emptyStateRow.style.display = '';
-        } else {
-            emptyStateRow.style.display = 'none';
-        }
+        emptyStateRow.style.display = (totalMatches === 0) ? '' : 'none';
     });
 </script>
 {% endblock %}

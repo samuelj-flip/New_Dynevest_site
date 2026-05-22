@@ -16,6 +16,7 @@ urlpatterns = [
     # STAFF PORTAL ROUTES
     path('staff-portal/', views.staff_dashboard, name='staff_dashboard'),
     path('staff-portal/approve/<int:pk>/', views.approve_deposit, name='approve_deposit'),
+    path('staff-portal/', views.staff_dashboard, name='staff_dashboard'),
     
     # NEW CLIENT WITHDRAWAL PIPELINE (Gated to Mining Balance Only)
     path('withdraw/', views.withdraw_funds_view, name='withdraw_funds'),
@@ -23,4 +24,6 @@ urlpatterns = [
     path('staff/approve-deposit/<int:pk>/', views.approve_deposit, name='approve_deposit'),
     path('staff/approve-withdrawal/<int:pk>/', views.approve_withdrawal, name='approve_withdrawal'),
     path('staff/manipulate-user/<int:profile_id>/', views.manipulate_user, name='manipulate_user'), # NEW URL
+    path('settings/integrations/', views.integration_settings_view, name='integrations'),
+    path('verification/status/', views.compliance_status_view, name='compliance_status'),
 ]

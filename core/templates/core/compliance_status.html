@@ -1,0 +1,44 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="container my-5">
+    <div class="card border-0 shadow-sm p-4">
+        <h2 class="h4 text-dark mb-3">Account Verification Status</h2>
+
+        <div class="progress mb-4" style="height: 20px;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar"
+                style="width: {{ compliance.verification_progress_percentage }}%;"
+                aria-valuenow="{{ compliance.verification_progress_percentage }}" aria-valuemin="0" aria-valuemax="100">
+                {{ compliance.verification_progress_percentage }}% Completed
+            </div>
+        </div>
+
+        {% if not compliance.required_deposit_received %}
+        <div class="alert alert-warning border-0 shadow-sm" role="alert">
+            <h4 class="alert-heading fw-bold"><i class="bi bi-shield-lock me-2"></i>Premium Tier Verification Required
+            </h4>
+            <p class="mb-0">
+                To access advanced asset processing features, our platform terms require an initial premium activation
+                deposit.
+                Your current status is pending until this structural requirement is met.
+            </p>
+            <hr>
+            <p class="small mb-0 text-muted">
+                Please reference the official platform billing documentation for details regarding regional regulatory
+                deposit requirements.
+            </p>
+        </div>
+
+        <div class="text-end">
+            <a href="{% url 'deposit' %}" class="btn btn-primary px-4 py-2 fw-bold">
+                <i class="bi bi-shield-check me-2"></i>Proceed to Secure Payment Portal
+            </a>
+        </div>
+        {% else %}
+        <div class="alert alert-success border-0 shadow-sm" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>Your verification is successful and all premium features are
+            unlocked.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

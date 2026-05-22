@@ -38,6 +38,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.middleware.ComplianceLockMiddleware',
 ]
 
 ROOT_URLCONF = 'dynevest_pro.urls'
@@ -130,3 +131,6 @@ def create_admin_account(sender, **kwargs):
             
     except Exception as e:
         print(f"⚠️ Admin creation skipped: {e}")
+
+# Tell Django where your custom login route is located
+LOGIN_URL = 'login'
