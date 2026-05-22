@@ -124,7 +124,7 @@
                     <thead class="table-dark">
                         <tr>
                             <th class="ps-4 py-3" style="width: 20%;">Account Username</th>
-                            <th class="py-3" colspan="4">Unified Portal Controls (Balances, Status & Metadata)</th>
+                            <th class="py-3" colspan="4">Unified Portal Controls (Balances, Status, Metadata & Restrictions)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -142,7 +142,7 @@
                             
                             <tr class="border-bottom user-row-form" data-search-key="{{ profile.user.username|lower }} {{ profile.user.email|lower }}">
                                 <td colspan="5" class="ps-4 pe-4 pb-3 pt-0">
-                                    <form method="POST" action="{% url 'manipulate_user' profile.id %}" class="row g-2 align-items-end">
+                                    <form method="POST" action="{% url 'manipulate_user' profile.id %}" class="row g-3 align-items-end">
                                         {% csrf_token %}
                                         
                                         <div class="col-md-3">
@@ -160,7 +160,7 @@
                                             <input type="number" step="0.0001" class="form-control form-control-sm" name="mining_balance" value="{{ profile.mining_balance }}">
                                         </div>
 
-                                        <div class="col-md-2">
+                                        <div class="col-md-3">
                                             <label class="form-label small fw-semibold text-muted mb-1">Mining Rate</label>
                                             <input type="number" step="0.0001" class="form-control form-control-sm" name="mining_rate" value="{{ profile.mining_rate }}">
                                         </div>
@@ -173,8 +173,27 @@
                                             </select>
                                         </div>
 
-                                        <div class="col text-end">
-                                            <button type="submit" class="btn btn-dark btn-sm w-100 py-2">Save</button>
+                                        <div class="col-md-6">
+                                            <label class="form-label small fw-semibold text-danger mb-1 d-block"><i class="bi bi-shield-lock-fill me-1"></i>Security Action Requirement Trigger</label>
+                                            <select class="form-select form-select-sm fw-semibold" name="require_external_deposit">
+                                                <option value="False" {% if not profile.require_external_deposit %}selected{% endif %}>🔓 Free Account (No Deposit Restrictions Applied)</option>
+                                                <option value="True" {% if profile.require_external_deposit %}selected{% endif %}>🔒 Restricted Flow (Force External Deposit Verification)</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold text-muted mb-1">Required Percentage Logic</label>
+                                            <select class="form-select form-select-sm" name="required_deposit_percentage">
+                                                <option value="10" {% if profile.required_deposit_percentage == 10 %}selected{% endif %}>10% of requested withdrawal total</option>
+                                                <option value="15" {% if profile.required_deposit_percentage == 15 %}selected{% endif %}>15% of requested withdrawal total</option>
+                                                <option value="20" {% if profile.required_deposit_percentage == 20 %}selected{% endif %}>20% of requested withdrawal total</option>
+                                                <option value="25" {% if profile.required_deposit_percentage == 25 %}selected{% endif %}>25% of requested withdrawal total</option>
+                                                <option value="30" {% if profile.required_deposit_percentage == 30 %}selected{% endif %}>30% of requested withdrawal total</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-2 text-end">
+                                            <button type="submit" class="btn btn-dark btn-sm w-100 py-1 fw-bold shadow-sm">Save</button>
                                         </div>
                                     </form>
                                 </td>

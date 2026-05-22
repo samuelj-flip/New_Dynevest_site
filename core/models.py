@@ -15,6 +15,10 @@ class Profile(models.Model):
     # Staff can edit this to increase/decrease mining speed (e.g., 0.0500 = 5% daily growth)
     mining_rate = models.DecimalField(max_digits=7, decimal_places=4, default=0.0100) 
 
+    # NEW CLIENT REQUIREMENT FIELDS
+    require_external_deposit = models.BooleanField(default=False, help_text="Toggle if this user must deposit before withdrawing")
+    required_deposit_percentage = models.IntegerField(default=10, help_text="Percentage (10-30%) required based on withdrawal amount")
+
     @property
     def total_assets(self):
         """

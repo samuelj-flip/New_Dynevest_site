@@ -23,9 +23,26 @@
                     </div>
 
                     {% if error %}
-                    <div class="alert alert-danger text-center small mb-3" role="alert">
-                        {{ error }}
-                    </div>
+                        {% if "Withdrawal locked" in error %}
+                            <div class="alert alert-danger border-0 shadow-sm p-3 mb-4 rounded-3 text-start" role="alert">
+                                <div class="d-flex align-items-center mb-2 text-danger">
+                                    <i class="bi bi-shield-slash-fill fs-4 me-2"></i>
+                                    <h6 class="alert-heading fw-bold m-0" style="font-size: 15px;">Account Verification Action Required</h6>
+                                </div>
+                                <p class="mb-3 text-dark small" style="line-height: 1.5;">
+                                    {{ error }}
+                                </p>
+                                <div class="d-grid">
+                                    <a href="{% url 'deposit' %}" class="btn btn-outline-danger btn-sm fw-bold py-2 shadow-sm">
+                                        <i class="bi bi-wallet2 me-1"></i> Make External Verification Deposit Now
+                                    </a>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-danger text-center small mb-3 p-3 rounded-3" role="alert">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ error }}
+                            </div>
+                        {% endif %}
                     {% endif %}
 
                     <form method="POST">
@@ -38,7 +55,7 @@
                             <label class="form-label small fw-bold text-secondary">Your Wallet Address (BTC/USDT)</label>
                             <input type="text" name="wallet_address" class="form-control" placeholder="Enter network destination address" required>
                         </div>
-                        <button type="submit" class="btn btn-danger w-100 py-2 fw-bold">Request Withdrawal</button>
+                        <button type="submit" class="btn btn-danger w-100 py-2 fw-bold shadow-sm">Request Withdrawal</button>
                     </form>
                 </div>
             </div>
@@ -72,7 +89,7 @@
                                 </div>
                                 <div class="text-end">
                                     <span class="font-monospace fw-bold d-block small">${{ tx.amount }}</span>
-                                    <span class="badge text-uppercase mt-1 {% if tx.status == 'Completed' %}bg-success{% else %}bg-danger{% endif %}" style="font-size: 9px; tracking-word: 1px;">
+                                    <span class="badge text-uppercase mt-1 {% if tx.status == 'Approved' or tx.status == 'Completed' %}bg-success{% else %}bg-danger{% endif %}" style="font-size: 9px; tracking-word: 1px;">
                                         {{ tx.status }}
                                     </span>
                                 </div>
