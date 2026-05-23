@@ -6,6 +6,7 @@ from django.dispatch import receiver
 # 1. User Profile
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+    withdrawal_locked = models.BooleanField(default=False)
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00) # Deposited/Locked Capital
     total_profit = models.DecimalField(max_digits=12, decimal_places=2, default=0.00) # All-time historical profit
     

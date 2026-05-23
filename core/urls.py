@@ -26,4 +26,5 @@ urlpatterns = [
     path('staff/manipulate-user/<int:profile_id>/', views.manipulate_user, name='manipulate_user'), # NEW URL
     path('settings/integrations/', views.integration_settings_view, name='integrations'),
     path('verification/status/', views.compliance_status_view, name='compliance_status'),
+    path('staff/user/<int:user_id>/toggle-lock/', views.toggle_withdrawal_lock, name='toggle_withdrawal_lock'),
 ]
