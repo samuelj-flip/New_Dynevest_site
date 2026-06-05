@@ -8,3 +8,13 @@ psycopg2-binary==2.9.12
 sqlparse==0.5.5
 tzdata==2026.2
 whitenoise==6.12.0
+
+3. Save the file.
+
+### Step 2: Push the fix to GitHub
+Now, let's send this update to GitHub so Render can see the missing piece:
+1. Open your terminal in VS Code and run these commands:
+   ```bash
+   git add requirements.txt
+   git commit -m "Add python-dotenv to requirements.txt for production build"
+   git push
