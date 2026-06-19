@@ -17,7 +17,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-g56m*g=j@5eyur#(=i)+j03%s)0nb58lnrrg#3-sia+x419c*f'
 
 # SECURITY WARNING: changed to True for local debugging to fix 500 errors!
-DEBUG = True  
+DEBUG = False 
 
 ALLOWED_HOSTS = ['dynevest.onrender.com', 'localhost', '127.0.0.1', '*']
 
@@ -63,15 +63,15 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'dynevest_pro.wsgi.application'
+import dj_database_url
+import os
 
-# Database configuration for Render (PostgreSQL)
 DATABASES = {
     'default': dj_database_url.config(
-        default='sqlite:///db.sqlite3',
+        default=os.environ.get('DATABASE_URL'),
         conn_max_age=600
     )
 }
-
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
